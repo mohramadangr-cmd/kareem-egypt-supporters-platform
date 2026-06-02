@@ -2,8 +2,9 @@ export const campaign = {
   campaignName: "منصة التشجيع المصرية من كريم فارما",
   brandName: "كريم فارما",
   prizeName: "بوكس التشجيع من كريم فارما",
-  whatsappNumber: "201XXXXXXXXX",
-  categories: ["صيدلية", "مخزن أدوية أو شركة توزيع", "مجالات أخرى"],
+  whatsappNumber: "201145000445",
+  whatsappMessage: "السلام عليكم، أنا مهتم بعروض كريم فارما من منصة التشجيع",
+  customerOptions: ["نعم", "لا", "مش متأكد"],
   onlineOrderOptions: ["نعم", "لا", "محتاج حد يشرحلي"],
   colors: {
     red: "#E30613",
