@@ -91,11 +91,10 @@ function Header() {
 }
 
 function BottomNav() {
-  const nextEgypt = matchesData.find((match) => match.teamA === "مصر" || match.teamB === "مصر") || matchesData[0];
   const items = [
     ["/", "⌂", "الرئيسية"],
     ["/matches", "⚽", "المباريات"],
-    [`/predict/${nextEgypt.id}`, "★", "توقع"],
+    [`/predict/${matchesData[0].id}`, "★", "توقع"],
     ["/wheel", "✦", "العجلة"],
     ["/offers", "٪", "العروض"]
   ];
@@ -105,7 +104,6 @@ function BottomNav() {
 function Footer() {
   return (
     <footer>
-      <img src={assetPaths.logo} alt="كريم فارما" />
       <p>كريم فارما بتشجع منتخب مصر في كأس العالم ⚽</p>
       <small>شارك أصحابك المنافسة وعيش أجواء البطولة</small>
     </footer>
@@ -117,18 +115,16 @@ function SectionTitle({ eyebrow, title, text }) {
 }
 
 function Home() {
-  const egyptMatches = matchesData.filter((match) => match.teamA === "مصر" || match.teamB === "مصر");
-  const nextEgypt = egyptMatches.find((match) => !isStarted(match)) || egyptMatches[0];
+  const openingMatch = matchesData[0];
   return (
     <>
       <section className="hero wrap">
         <div className="hero-copy">
-          <img className="hero-logo" src={assetPaths.logo} alt="كريم فارما" />
           <span className="pill">🇪🇬 كريم فارما بتشجع منتخب مصر</span>
-          <h1><em>شجع بلدك</em><br />وخليك في قلب الماتش</h1>
-          <p>توقع النتيجة وادخل السحب على <strong>بوكس التشجيع من كريم فارما</strong></p>
+          <h1><em>شجع بلدك</em></h1>
+          <p>توقع النتيجة وادخل السحب على بوكس التشجيع من كريم فارما</p>
           <div className="actions">
-            <Link className="btn primary" to={`/predict/${nextEgypt.id}`}>توقع واكسب <b>←</b></Link>
+            <Link className="btn primary" to="/matches">توقع واكسب <b>←</b></Link>
             <Link className="btn ghost" to="/matches">شوف جدول المباريات</Link>
           </div>
         </div>
@@ -141,7 +137,7 @@ function Home() {
       </section>
       <Ticker />
       <section className="wrap home-grid">
-        <Countdown match={nextEgypt} />
+        <Countdown match={openingMatch} />
         <div className="stats-grid">
           {[["١٠٤", "مباريات البطولة"], ["٢,٤٨٠", "المشاركين"], ["٥,٩٢٠", "توقعات مسجلة"], ["🎁", "بوكس التشجيع"]].map(([value, label]) => <article className="stat-card" key={label}><strong>{value}</strong><span>{label}</span></article>)}
         </div>
@@ -149,7 +145,7 @@ function Home() {
       <section className="wrap section-space">
         <SectionTitle eyebrow="عيش البطولة" title="التشجيع عندنا له طعم تاني" text="اختار اللي تحبه وابدأ المشاركة في ثواني." />
         <div className="quick-grid">
-          <QuickCard icon="🇪🇬" title="مباراة مصر القادمة" text={`${nextEgypt.teamA} ضد ${nextEgypt.teamB}`} link={`/predict/${nextEgypt.id}`} action="توقع النتيجة" />
+          <QuickCard icon="🇪🇬" title="مباريات منتخب مصر" text="قريبًا بعد إعلان الجدول النهائي" link="/matches" action="تابع التحديثات" />
           <QuickCard icon="✦" title="عجلة الحظ اليومية" text="لفة جديدة كل يوم ومفاجآت مستنياك" link="/wheel" action="لف العجلة" />
           <QuickCard icon="٪" title="عروض البطولة" text="عروض ومتابعة نواقص من كريم فارما" link="/offers" action="شوف العروض" />
         </div>
@@ -180,7 +176,7 @@ function Countdown({ match }) {
     const timer = setInterval(tick, 60000);
     return () => clearInterval(timer);
   }, [match]);
-  return <article className="countdown-card"><div><span>مباراة مصر القادمة</span><h3>{match.teamAFlagEmoji} {match.teamA} <b>VS</b> {match.teamB} {match.teamBFlagEmoji}</h3></div><div className="countdown"><small>باقي على الماتش</small><strong>{remaining}</strong></div></article>;
+  return <article className="countdown-card"><div><span>انطلاق كأس العالم 2026</span><h3>⚽ أول يوم في البطولة</h3></div><div className="countdown"><small>باقي على البداية</small><strong>{remaining}</strong></div></article>;
 }
 
 function QuickCard({ icon, title, text, link, action }) {
@@ -204,6 +200,8 @@ function Matches() {
   return (
     <section className="page wrap">
       <SectionTitle eyebrow="كل الماتشات" title="جدول مباريات البطولة" text="اختار الماتش وسجل توقعك بسهولة." />
+      <div className="featured-egypt"><b>🇪🇬</b><div><h3>منتخب مصر</h3><p>مباريات مصر هتظهر هنا بعد إدخال الجدول الرسمي.</p></div><span>قريبًا</span></div>
+      <div className="schedule-note">سيتم تحديث الفرق والمواعيد النهائية حسب الجدول الرسمي للبطولة.</div>
       <div className="filter-panel">
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="دور على منتخب..." />
         <select value={stage} onChange={(e) => setStage(e.target.value)}>
@@ -282,7 +280,7 @@ function Prediction() {
         </div>
         <div className="field"><label>اسم الصيدلية / المكان / الشركة</label><input required value={form.workplace} onChange={(e) => setForm({ ...form, workplace: e.target.value })} placeholder="اكتب اسم مكان العمل" /></div>
         <div className="field"><label>مهتم بالطلب أونلاين من كريم فارما؟</label><div className="radio-grid">{campaign.onlineOrderOptions.map((value) => <label key={value}><input required type="radio" name="online" checked={form.onlineOrder === value} onChange={() => setForm({ ...form, onlineOrder: value })} />{value}</label>)}</div></div>
-        <div className="field"><label>الفرق اللي بتشجعها</label><input value={form.favoriteTeams} onChange={(e) => setForm({ ...form, favoriteTeams: e.target.value })} placeholder="مثال: مصر والبرازيل" /></div>
+        <div className="field"><label>الفرق اللي بتشجعها</label><input value={form.favoriteTeams} onChange={(e) => setForm({ ...form, favoriteTeams: e.target.value })} placeholder="مثال: مصر والمغرب" /></div>
         <div className="score-box">
           <h3>توقع النتيجة</h3>
           <div><label><b>{match.teamAFlagEmoji}</b><span>{match.teamA}</span><input required type="number" min="0" max="20" value={form.scoreA} onChange={(e) => setForm({ ...form, scoreA: e.target.value })} /></label><em>-</em><label><b>{match.teamBFlagEmoji}</b><span>{match.teamB}</span><input required type="number" min="0" max="20" value={form.scoreB} onChange={(e) => setForm({ ...form, scoreB: e.target.value })} /></label></div>
@@ -351,7 +349,6 @@ function Wheel() {
         <div className="wheel" style={{ transform: `rotate(${rotation}deg)` }}>
           {wheelPrizes.map((prize, index) => <span style={{ transform: `rotate(${index * (360 / wheelPrizes.length)}deg)` }} key={prize}>{prize}</span>)}
         </div>
-        <img src={assetPaths.logo} alt="كريم فارما" />
       </div>
       <img className="wheel-box" src={assetPaths.cheerBox} alt="بوكس التشجيع من كريم فارما" />
     </section>
@@ -364,7 +361,7 @@ function Offers() {
   return (
     <section className="page wrap">
       <SectionTitle eyebrow="فرص تستاهل" title="عروض البطولة" text="اختار العرض وتواصل مع فريق كريم فارما على واتساب." />
-      {sections.map((section) => <div className="offers-section" key={section}><h3>{section}</h3><div className="offers-grid">{offers.filter((offer) => offer.section === section).map((offer) => <article className="offer-card" key={offer.id}><img src={assetPaths.logo} alt="كريم فارما" /><span>{offer.validUntil}</span><h4>{offer.title}</h4><p>{offer.description}</p><a target="_blank" rel="noreferrer" href={whatsappLink(offer)}>اطلب العرض على واتساب</a></article>)}</div></div>)}
+      {sections.map((section) => <div className="offers-section" key={section}><h3>{section}</h3><div className="offers-grid">{offers.filter((offer) => offer.section === section).map((offer) => <article className="offer-card" key={offer.id}><span>{offer.validUntil}</span><h4>{offer.title}</h4><p>{offer.description}</p><a target="_blank" rel="noreferrer" href={whatsappLink(offer)}>اطلب العرض على واتساب</a></article>)}</div></div>)}
     </section>
   );
 }
@@ -374,7 +371,7 @@ function Rules() {
   return (
     <section className="page wrap rules-layout">
       <div><SectionTitle eyebrow="كل اللي محتاج تعرفه" title="الجائزة وقواعد المشاركة" text="خطوات بسيطة وفرصة حلوة تعيش بيها أجواء البطولة." /><div className="rules-card">{rules.map((rule, index) => <p key={rule}><b>{index + 1}</b>{rule}</p>)}</div></div>
-      <article className="prize-card"><img src={assetPaths.logo} alt="كريم فارما" /><img src={assetPaths.cheerBox} alt="بوكس التشجيع من كريم فارما" /><span>الجائزة</span><h2>بوكس التشجيع من كريم فارما</h2><p>تيشيرت منتخب مصر + كاب تشجيع + هدايا ومفاجآت مجانية.</p><Link className="btn primary" to="/matches">اختار ماتش وتوقع</Link></article>
+      <article className="prize-card"><img src={assetPaths.cheerBox} alt="بوكس التشجيع من كريم فارما" /><span>الجائزة</span><h2>بوكس التشجيع من كريم فارما</h2><p>تيشيرت منتخب مصر + كاب تشجيع + هدايا ومفاجآت مجانية.</p><Link className="btn primary" to="/matches">اختار ماتش وتوقع</Link></article>
     </section>
   );
 }
