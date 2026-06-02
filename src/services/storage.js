@@ -1,7 +1,8 @@
 const KEYS = {
   predictions: "kareem_predictions",
   spins: "kareem_wheel_spins",
-  matchResults: "kareem_match_results"
+  matchResults: "kareem_match_results",
+  profile: "kareem_pharmacy_profile"
 };
 
 const read = (key) => JSON.parse(localStorage.getItem(key) || "[]");
@@ -18,6 +19,8 @@ export const savePrediction = (prediction) => {
 export const getSpins = () => read(KEYS.spins);
 export const saveSpin = (spin) => write(KEYS.spins, [...getSpins(), spin]);
 export const getMatchResults = () => read(KEYS.matchResults);
+export const getProfile = () => JSON.parse(localStorage.getItem(KEYS.profile) || "null");
+export const saveProfile = (profile) => localStorage.setItem(KEYS.profile, JSON.stringify(profile));
 export const saveMatchResult = (result) => {
   const rows = getMatchResults();
   const index = rows.findIndex((row) => row.id === result.id);

@@ -5,7 +5,8 @@ export const campaign = {
   whatsappNumber: "201145000445",
   whatsappMessage: "السلام عليكم، أنا مهتم بعروض كريم فارما من منصة التشجيع",
   customerOptions: ["نعم", "لا", "مش متأكد"],
-  onlineOrderOptions: ["نعم", "لا", "محتاج حد يشرحلي"],
+  onlineOrderOptions: ["نعم", "لا", "محتاج شرح"],
+  orderingMethodOptions: ["أوميت", "إي سبلاي", "طلب مباشر", "أخرى"],
   colors: {
     red: "#E30613",
     white: "#FFFFFF",

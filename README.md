@@ -27,7 +27,13 @@ npm run build
 - الأصول الأصلية موجودة في `public/assets/`.
 - رقم واتساب قابل للتعديل في `src/config/campaign.js`.
 - العروض قابلة للتعديل في `src/data/offers.json`.
-- المباريات موجودة في `src/data/matches.json` ويمكن إعادة توليد بيانات العرض التجريبي عبر `npm run generate:matches`.
+- المباريات الرسمية تتم مزامنتها من واجهة FIFA الرسمية إلى `src/data/fixtures.json` عبر:
+
+```bash
+npm run sync:fixtures
+```
+
+مصدر البيانات: `https://api.fifa.com/api/v3/calendar/matches?language=en&count=500&idSeason=285023`
 
 ## بيانات العرض التجريبي
 
