@@ -42,13 +42,14 @@ const shiftDate = (date, days) => {
   return value.toISOString().slice(0, 10);
 };
 const isStarted = (match) => getDate(match) <= new Date();
-const canPredict = (match) => !isStarted(match) && [todayCairo(), shiftDate(todayCairo(), 1)].includes(match.date);
+const isEgyptMatch = (match) => match.teamA === "مصر" || match.teamB === "مصر";
+const openPredictionDates = () => [...new Set(matchesData.filter((match) => !isStarted(match)).map((match) => match.date))].sort().slice(0, 3);
+const canPredict = (match) => !isStarted(match) && (isEgyptMatch(match) || openPredictionDates().includes(match.date));
 const getMatches = () => {
   const results = getMatchResults();
   return matchesData.map((match) => ({ ...match, ...results.find((row) => row.id === match.id) }));
 };
 const contactUrl = `https://wa.me/${campaign.whatsappNumber}?text=${encodeURIComponent(campaign.whatsappMessage)}`;
-const offerUrl = `https://wa.me/${campaign.whatsappNumber}?text=${encodeURIComponent("السلام عليكم، أرغب في الاستفادة من عرض البطولة من كريم فارما.")}`;
 
 function App() {
   return <div className="app-shell">
@@ -70,7 +71,7 @@ function App() {
       <Route path="/admin-demo" element={<AdminDemo />} />
       <Route path="*" element={<NotFound />} />
     </Routes></main>
-    <Footer /><BottomNav />
+    <Footer /><Link className="floating-predict" to="/matches">توقع الآن</Link><BottomNav />
   </div>;
 }
 
@@ -133,31 +134,39 @@ function Home() {
       </div>
       <div className="hero-visual"><img className="flag-backdrop" src={assetPaths.egyptFlag} alt="" /><img className="cheer-box hero-box" src={assetPaths.cheerBox} alt="بوكس التشجيع من كريم فارما" /></div>
     </section>
+    <section id="predict-now" className="wrap prediction-spotlight campaign-section">
+      <div className="prediction-spotlight-head"><div><span>التوقعات مفتوحة الآن</span><h2>توقع الآن واكسب مع كريم فارما</h2><p>اختار الماتش وسجل توقع صيدليتك في خطوات بسيطة.</p></div><b>{openMatches.length}<small>ماتش مفتوح</small></b></div>
+      <div className="home-match-grid">{openMatches.slice(0, 3).map((match) => <MatchCard match={match} key={match.id} />)}</div>
+      <Link className="btn primary prediction-all" to="/matches">شوف كل المباريات المفتوحة</Link>
+    </section>
+    <section className="wrap campaign-stats campaign-section">
+      {[["+", "١٢٠٠", "صيدليات مشاركة"], ["⚽", "٣٨٥٠", "توقعات مسجلة"], ["🎁", "١٥٠", "جوائز موزعة"]].map(([icon, value, label]) => <article key={label}><i>{icon}</i><strong>{value}</strong><span>{label}</span></article>)}
+    </section>
+    <section className="wrap wheel-home-feature campaign-section">
+      <div><span>جوائز يومية</span><h2>لف العجلة اليومية</h2><p>ادخل رقم واتساب وجرب حظك كل يوم مع كريم فارما.</p><Link className="btn primary" to="/wheel">ابدأ الآن</Link></div>
+      <b>✦</b>
+    </section>
     <section id="today" className="wrap campaign-section">
       <SectionTitle eyebrow={actualToday.length ? "النهارده" : "القادم"} title={actualToday.length ? "مباريات اليوم" : "أقرب مباريات البطولة"} text="المواعيد بتوقيت القاهرة." action="الجدول كامل" link="/matches" />
       <div className="home-match-grid">{todayList.map((match) => <MatchCard match={match} key={match.id} />)}</div>
     </section>
-    <section className="wrap campaign-section">
-      <SectionTitle eyebrow="شارك صيدليتك" title={openMatches.length ? "التوقعات مفتوحة الآن" : "التوقعات تفتح قريبًا"} text="التوقع متاح لمباريات اليوم وبكرة فقط." />
-      {openMatches.length ? <div className="home-match-grid">{openMatches.slice(0, 3).map((match) => <MatchCard match={match} key={match.id} />)}</div> : <EmptyCard text="التوقعات هتفتح قبل أقرب مباراة بيوم. ارجع لنا قريبًا." />}
-    </section>
     <section className="wrap prize-feature campaign-section">
       <img src={assetPaths.cheerBox} alt="بوكس التشجيع من كريم فارما" />
-      <div><span>الجائزة الكبرى</span><h2>بوكس التشجيع من كريم فارما</h2><p>تيشيرت منتخب مصر • كاب تشجيع • هدايا ومفاجآت</p><Link className="btn primary" to="/matches">ادخل السحب الآن</Link></div>
+      <div><span>الجائزة الكبرى</span><h2>ماذا يوجد داخل بوكس التشجيع؟</h2><p>تيشيرت منتخب مصر • كاب تشجيع • هدايا ومفاجآت • جوائز إضافية</p><Link className="btn primary" to="/matches">ادخل السحب الآن</Link></div>
     </section>
     <section className="wrap campaign-section">
-      <SectionTitle eyebrow="بكرة" title="مباريات بكرة" text="التوقع بيفتح قبل الماتش بيوم." />
+      <SectionTitle eyebrow="بكرة" title="مباريات بكرة" text="اختار الماتش وسجل توقع صيدليتك." />
       {tomorrowList.length ? <div className="home-match-grid">{tomorrowList.map((match) => <MatchCard match={match} key={match.id} />)}</div> : <EmptyCard text="مفيش مباريات بكرة. تابع أقرب مباريات البطولة من الجدول الكامل." />}
     </section>
     <section className="wrap campaign-section">
       <SectionTitle eyebrow="للصيدليات" title="عروض البطولة للصيدليات" action="شوف كل العروض" link="/offers" />
       <div className="offers-grid preview-grid">{offers.slice(0, 3).map((offer) => <OfferCard offer={offer} key={offer.id} />)}</div>
     </section>
-    <section className="wrap teaser-grid campaign-section">
-      <article className="teaser-card wheel-teaser"><div><span>لفة يومية</span><h2>جرب حظك مع عجلة التشجيع</h2><Link className="btn primary" to="/wheel">لف العجلة اليومية</Link></div><img src={assetPaths.cheerBox} alt="بوكس التشجيع" /></article>
+    <section className="wrap campaign-links campaign-section">
       <article className="teaser-links"><Link to="/matches">⚽ شوف جدول البطولة كامل</Link><Link to="/results">🏆 شوف النتائج</Link><Link to="/branches">📍 فروع كريم فارما</Link><a href={contactUrl} target="_blank" rel="noreferrer">💬 تواصل مع كريم فارما</a></article>
     </section>
-    <section className="wrap app-promo campaign-section"><div><span>طلبات الصيدليات</span><h2>اطلب مباشرة من تطبيق كريم فارما</h2><p>عروض حصرية • متابعة الطلبات • سهولة الطلب • تجربة أسرع</p><button className="btn primary" type="button">تحميل التطبيق قريبًا</button></div><b>📱</b></section>
+    <section className="wrap about-kareem campaign-section"><div><span>ثقة وخبرة من ٢٠٠٥</span><h2>من هي كريم فارما؟</h2><p>كريم فارما شركة مصرية متخصصة في توزيع الأدوية تأسست عام 2005.</p><p>تُعد واحدة من أكبر شركات توزيع الأدوية في مصر، وحاصلة على شهادة GSDP الخاصة بجودة التخزين والتوزيع الدوائي.</p><p>يرأسها د. رفاعي ربيع رئيس لجنة الموزعين بالشعبة العامة للأدوية.</p><p>هدفنا تقديم خدمة توزيع احترافية تساعد الصيدليات على النمو وتحقيق أفضل تجربة شراء.</p></div><div className="trust-badges"><b>🇪🇬<small>شركة مصرية</small></b><b>✓<small>جودة GSDP</small></b><b>★<small>ثقة الصيدليات</small></b></div></section>
+    <section className="wrap app-promo campaign-section"><div><span>طلبات الصيدليات</span><h2>اطلب مباشرة من تطبيق كريم فارما</h2><p>عروض حصرية • متابعة الطلبات • سهولة الطلب • تجربة أسرع</p><a className="btn primary" href={contactUrl} target="_blank" rel="noreferrer">اطلب رابط التطبيق</a></div><b>📱</b></section>
     <section className="wrap contact-feature campaign-section"><div><span>فريقنا معاك</span><h2>تواصل مع كريم فارما</h2><p>اسأل عن العروض والطلبات وخدمات الصيدليات.</p></div><div><a className="btn primary" href={contactUrl} target="_blank" rel="noreferrer">واتساب 01145000445</a><a className="btn ghost" href="https://www.facebook.com/KareemPharmaOfficial/" target="_blank" rel="noreferrer">فيسبوك</a></div></section>
   </>;
 }
@@ -168,9 +177,9 @@ function TeamFlag({ src, name }) { return src ? <img className="team-flag" src={
 function MatchCard({ match, noAction = false, resultOnly = false }) {
   const allowed = canPredict(match);
   return <article className="match-card">
-    <div className="match-meta"><span>{match.stage}{match.group && ` • ${match.group}`}</span><StatusBadge status={match.status} /></div>
+    <div className="match-meta"><span>{match.stage}{match.group && ` • ${match.group}`}</span><div>{allowed && <i className="prediction-open">التوقعات مفتوحة الآن</i>}<StatusBadge status={match.status} /></div></div>
     <div className="teams"><div><TeamFlag src={match.teamAFlag} name={match.teamA} /><strong>{match.teamA}</strong></div><span>{match.status === "finished" ? `${match.scoreA} - ${match.scoreB}` : "ضد"}</span><div><TeamFlag src={match.teamBFlag} name={match.teamB} /><strong>{match.teamB}</strong></div></div>
-    <div className="match-bottom"><small>{cairoDate(match)} • {cairoTime(match)}</small>{!noAction && !resultOnly && (allowed ? <Link to={`/predict/${match.id}`}>توقع الماتش</Link> : <button disabled>التوقع يفتح قبل المباراة بيوم</button>)}</div>
+    <div className="match-bottom"><small>{cairoDate(match)} • {cairoTime(match)}</small>{!noAction && !resultOnly && (allowed ? <Link to={`/predict/${match.id}`}>توقع الماتش</Link> : <button disabled>التوقع يفتح قريبًا</button>)}</div>
   </article>;
 }
 function StatusBadge({ status }) { return <i className={`status ${status}`}>{({ upcoming: "قريبًا", live: "مباشر", finished: "انتهت" })[status]}</i>; }
@@ -196,17 +205,17 @@ function Matches() {
 function MatchDetails() {
   const { id } = useParams(); const match = getMatches().find((row) => row.id === id);
   if (!match) return <NotFound />;
-  return <section className="page narrow wrap"><SectionTitle eyebrow="تفاصيل الماتش" title="تفاصيل المباراة" /><MatchCard match={match} noAction />{canPredict(match) ? <div className="center-action"><Link className="btn primary" to={`/predict/${id}`}>سجل توقعك دلوقتي</Link></div> : <div className="notice">التوقعات تفتح قبل المباراة بيوم فقط.</div>}</section>;
+  return <section className="page narrow wrap"><SectionTitle eyebrow="تفاصيل الماتش" title="تفاصيل المباراة" /><MatchCard match={match} noAction />{canPredict(match) ? <div className="center-action"><Link className="btn primary" to={`/predict/${id}`}>سجل توقعك دلوقتي</Link></div> : <div className="notice">التوقع هيفتح قريبًا. تابع المباريات المفتوحة من الصفحة الرئيسية.</div>}</section>;
 }
 
 function Prediction() {
   const { id } = useParams(); const navigate = useNavigate(); const match = getMatches().find((row) => row.id === id);
   const keyBase = (whatsapp, pharmacyName) => `${pharmacyName.trim()}_${whatsapp.replace(/\D/g, "")}_${id}`;
-  const initial = { pharmacyName: "", contactName: "", whatsapp: "", governorate: "", customerCode: "", isCurrentCustomer: "", onlineOrderingInterest: "", currentOrderingMethod: "", favoriteTeams: "", scoreA: "", scoreB: "", consent: false, ...getProfile() };
+  const initial = { pharmacyName: "", contactName: "", whatsapp: "", governorate: "", customerCode: "", isCurrentCustomer: "", onlineOrderingInterest: "", currentOrderingMethod: "", wantsContact: "", favoriteTeams: "", scoreA: "", scoreB: "", consent: false, ...getProfile() };
   const [form, setForm] = useState(initial); const [success, setSuccess] = useState(false); const [locked, setLocked] = useState(false);
   if (!match) return <NotFound />;
-  if (!canPredict(match)) return <section className="page narrow wrap"><SectionTitle eyebrow="التوقعات" title="لسه بدري على الماتش" /><MatchCard match={match} noAction /><div className="notice">التوقعات تفتح قبل المباراة بيوم فقط.</div><Link className="btn ghost back-link" to="/matches">ارجع لجدول المباريات</Link></section>;
-  const submit = (event) => { event.preventDefault(); if (locked || isStarted(match)) return setLocked(true); const now = new Date().toISOString(); const key = keyBase(form.whatsapp, form.pharmacyName); const existing = getPredictions().find((row) => row.key === key); saveProfile({ pharmacyName: form.pharmacyName, contactName: form.contactName, whatsapp: form.whatsapp, governorate: form.governorate, customerCode: form.customerCode, isCurrentCustomer: form.isCurrentCustomer, onlineOrderingInterest: form.onlineOrderingInterest, currentOrderingMethod: form.currentOrderingMethod, favoriteTeams: form.favoriteTeams }); savePrediction({ ...form, key, matchId: id, prediction: `${form.scoreA}-${form.scoreB}`, createdAt: existing?.createdAt || now, updatedAt: now }); setSuccess(true); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  if (!canPredict(match)) return <section className="page narrow wrap"><SectionTitle eyebrow="التوقعات" title="التوقع هيفتح قريبًا" /><MatchCard match={match} noAction /><div className="notice">تابع المباريات المفتوحة من الصفحة الرئيسية.</div><Link className="btn ghost back-link" to="/matches">ارجع لجدول المباريات</Link></section>;
+  const submit = (event) => { event.preventDefault(); if (locked || isStarted(match)) return setLocked(true); const now = new Date().toISOString(); const key = keyBase(form.whatsapp, form.pharmacyName); const existing = getPredictions().find((row) => row.key === key); saveProfile({ pharmacyName: form.pharmacyName, contactName: form.contactName, whatsapp: form.whatsapp, governorate: form.governorate, customerCode: form.customerCode, isCurrentCustomer: form.isCurrentCustomer, onlineOrderingInterest: form.onlineOrderingInterest, currentOrderingMethod: form.currentOrderingMethod, wantsContact: form.wantsContact, favoriteTeams: form.favoriteTeams }); savePrediction({ ...form, key, matchId: id, prediction: `${form.scoreA}-${form.scoreB}`, createdAt: existing?.createdAt || now, updatedAt: now }); setSuccess(true); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const findExisting = (next) => { const row = getPredictions().find((item) => item.key === keyBase(next.whatsapp, next.pharmacyName)); if (row) setForm(row); setLocked(Boolean(row && isStarted(match))); };
   if (success) return <section className="page narrow wrap"><div className="success-card"><img src={assetPaths.cheerBox} alt="بوكس التشجيع من كريم فارما" /><h1>تم تسجيل توقعك بنجاح</h1><p>بالتوفيق في السحب على بوكس التشجيع من كريم فارما</p><button onClick={() => navigate("/wheel")} className="btn primary">لف عجلة الحظ</button></div></section>;
   return <section className="page narrow wrap"><SectionTitle eyebrow="توقع واكسب" title="إيه توقع صيدليتك؟" text="سجل بيانات الصيدلية وثبت النتيجة." /><MatchCard match={match} noAction /><form className="prediction-form" onSubmit={submit}>
@@ -217,12 +226,13 @@ function Prediction() {
     <RadioField label="هل أنت عميل حالي لكريم فارما؟" name="customer" options={campaign.customerOptions} value={form.isCurrentCustomer} onChange={(value) => setForm({ ...form, isCurrentCustomer: value })} />
     <RadioField label="هل مهتم بالشراء أونلاين من كريم فارما؟" name="online" options={campaign.onlineOrderOptions} value={form.onlineOrderingInterest} onChange={(value) => setForm({ ...form, onlineOrderingInterest: value })} />
     <RadioField label="هل تستخدم حاليًا؟" name="ordering-method" options={campaign.orderingMethodOptions} value={form.currentOrderingMethod} onChange={(value) => setForm({ ...form, currentOrderingMethod: value })} />
+    <RadioField label="هل ترغب أن يتواصل معك فريق كريم فارما؟" name="wants-contact" options={["نعم", "لا"]} required={false} value={form.wantsContact} onChange={(value) => setForm({ ...form, wantsContact: value })} />
     <div className="field"><label>الفرق اللي بتشجعها</label><input value={form.favoriteTeams} onChange={(e) => setForm({ ...form, favoriteTeams: e.target.value })} placeholder="مثال: مصر والمغرب" /></div>
     <div className="score-box"><h3>توقع النتيجة</h3><div><label><span>{match.teamA}</span><input required type="number" min="0" max="20" value={form.scoreA} onChange={(e) => setForm({ ...form, scoreA: e.target.value })} /></label><em>-</em><label><span>{match.teamB}</span><input required type="number" min="0" max="20" value={form.scoreB} onChange={(e) => setForm({ ...form, scoreB: e.target.value })} /></label></div></div>
     <label className="consent"><input required type="checkbox" checked={form.consent} onChange={(e) => setForm({ ...form, consent: e.target.checked })} /> أوافق على استقبال تنبيهات المباريات والعروض من كريم فارما</label><button className="btn primary submit" disabled={locked}>ثبت توقع صيدليتك</button>
   </form></section>;
 }
-function RadioField({ label, name, options, value, onChange }) { return <div className="field"><label>{label}</label><div className="radio-grid">{options.map((option) => <label key={option}><input required type="radio" name={name} checked={value === option} onChange={() => onChange(option)} />{option}</label>)}</div></div>; }
+function RadioField({ label, name, options, value, onChange, required = true }) { return <div className="field"><label>{label}</label><div className="radio-grid">{options.map((option) => <label key={option}><input required={required} type="radio" name={name} checked={value === option} onChange={() => onChange(option)} />{option}</label>)}</div></div>; }
 
 function Results() { const finished = getMatches().filter((match) => match.status === "finished"); return <section className="page wrap"><SectionTitle eyebrow="النتائج" title="نتائج المباريات" text="كل النتائج بتوقيت القاهرة." />{finished.length ? <div className="matches-grid">{finished.map((match) => <MatchCard match={match} noAction resultOnly key={match.id} />)}</div> : <EmptyCard text="النتائج هتظهر هنا مع بداية البطولة." />}</section>; }
 
@@ -238,20 +248,20 @@ function Leaderboard() {
   </section>;
 }
 
-function Wheel() { const [whatsapp, setWhatsapp] = useState(""); const [rotation, setRotation] = useState(0); const [spinning, setSpinning] = useState(false); const [result, setResult] = useState(""); const spin = () => { const digits = whatsapp.replace(/\D/g, ""); const date = todayCairo(); if (!digits || spinning) return; if (getSpins().some((row) => row.whatsapp === digits && row.date === date)) return setResult("خدت لفتك النهارده، ارجع لنا بكرة."); const prize = wheelPrizes[Math.floor(Math.random() * wheelPrizes.length)]; setSpinning(true); setRotation((value) => value + 1440); setTimeout(() => { saveSpin({ whatsapp: digits, date, prize, createdAt: new Date().toISOString() }); setResult(`نتيجتك: ${prize}`); setSpinning(false); }, 3000); }; return <section className="page wrap wheel-layout"><div><SectionTitle eyebrow="جوائز يومية للصيدليات" title="لف واربح مع كريم فارما" text="ادخل رقم واتساب وخد لفتك اليومية." /><div className="wheel-form"><input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="رقم واتساب" /><button className="btn primary" onClick={spin}>{spinning ? "العجلة بتلف..." : "لف العجلة"}</button></div><small className="availability">لفة واحدة كل يوم لكل رقم واتساب.</small>{result && <div className="wheel-result">{result}</div>}</div><div className="wheel-stage"><div className="wheel-pointer">▼</div><div className="wheel" style={{ transform: `rotate(${rotation}deg)` }}>{wheelPrizes.map((prize, index) => <span style={{ transform: `rotate(${index * 51.4}deg)` }} key={prize}>{prize}</span>)}</div></div><img className="wheel-box visible-box" src={assetPaths.cheerBox} alt="بوكس التشجيع" /></section>; }
+function Wheel() { const [whatsapp, setWhatsapp] = useState(""); const [rotation, setRotation] = useState(0); const [spinning, setSpinning] = useState(false); const [result, setResult] = useState(""); const spin = () => { const digits = whatsapp.replace(/\D/g, ""); const date = todayCairo(); if (!digits || spinning) return; if (getSpins().some((row) => row.whatsapp === digits && row.date === date)) return setResult("خدت لفتك النهارده، ارجع لنا بكرة."); const prize = wheelPrizes[Math.floor(Math.random() * wheelPrizes.length)]; setSpinning(true); setRotation((value) => value + 1440); setTimeout(() => { saveSpin({ whatsapp: digits, date, prize, createdAt: new Date().toISOString() }); setResult(`نتيجتك: ${prize}`); setSpinning(false); }, 3000); }; return <section className="page wrap wheel-layout"><div><SectionTitle eyebrow="جوائز يومية للصيدليات" title="لف واربح مع كريم فارما" text="ادخل رقم واتساب وخد لفتك اليومية." /><div className="wheel-prizes">{wheelPrizes.slice(0, 6).map((prize) => <span key={prize}>✓ {prize}</span>)}</div><div className="wheel-form"><input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="رقم واتساب" /><button className="btn primary" onClick={spin}>{spinning ? "العجلة بتلف..." : "لف العجلة"}</button></div><small className="availability">لفة واحدة كل يوم لكل رقم واتساب.</small>{result && <div className="wheel-result">{result}</div>}</div><div className="wheel-stage"><div className="wheel-pointer">▼</div><div className="wheel" style={{ transform: `rotate(${rotation}deg)` }}>{wheelPrizes.map((prize, index) => <span style={{ transform: `rotate(${index * 51.4}deg)` }} key={prize}>{prize}</span>)}</div></div><img className="wheel-box visible-box" src={assetPaths.cheerBox} alt="بوكس التشجيع" /></section>; }
 
-function OfferCard({ offer }) { return <article className={`offer-card ${offer.id === 1 ? "featured-offer" : ""}`}><span>{offer.validUntil}</span><h4>{offer.title}</h4><p>{offer.description}</p><a href={offerUrl} target="_blank" rel="noreferrer">اطلب العرض على واتساب</a></article>; }
+function OfferCard({ offer }) { const whatsappUrl = `https://wa.me/${campaign.whatsappNumber}?text=${encodeURIComponent(offer.whatsappCTA || "السلام عليكم، أرغب في الاستفادة من عرض البطولة من كريم فارما.")}`; return <article className={`offer-card ${offer.id === 1 ? "featured-offer" : ""}`}><img className="offer-banner" src={offer.bannerImage} alt="" /><div><span>{offer.validUntil}</span><h4>{offer.title}</h4><p>{offer.description}</p><a href={whatsappUrl} target="_blank" rel="noreferrer">اطلب العرض على واتساب</a></div></article>; }
 function Offers() { return <section className="page wrap"><SectionTitle eyebrow="خصيصًا للصيدليات" title="عروض كريم فارما" text="اختار العرض واطلبه مباشرة على واتساب." />{[...new Set(offers.map((offer) => offer.section))].map((section) => <div className="offers-section" key={section}><h3>{section}</h3><div className="offers-grid">{offers.filter((offer) => offer.section === section).map((offer) => <OfferCard offer={offer} key={offer.id} />)}</div></div>)}</section>; }
 
-function BranchMap() { const mapRef = useRef(null); const locations = branches.filter((branch) => branch.lat && branch.lng); useEffect(() => { if (!locations.length || !mapRef.current) return; let map; import("leaflet").then((L) => { map = L.map(mapRef.current).setView([locations[0].lat, locations[0].lng], 10); L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" }).addTo(map); locations.forEach((branch) => L.marker([branch.lat, branch.lng]).addTo(map).bindPopup(branch.name)); }); return () => map?.remove(); }, []); return locations.length ? <div className="branch-map" ref={mapRef} /> : <div className="branch-map-empty">الخريطة هتظهر هنا مع إضافة بيانات الفروع.</div>; }
-function Branches() { return <section className="page wrap"><SectionTitle eyebrow="قريبًا" title="فروع كريم فارما" text="هتلاقي بيانات الفروع وطرق التواصل هنا." /><BranchMap /><div className="branches-grid">{branches.map((branch) => <article className="branch-card" key={branch.id}><h3>{branch.name}</h3><p>{branch.address || "سيتم إضافة بيانات الفروع قريبًا"}</p>{branch.googleMapsUrl && <a href={branch.googleMapsUrl} target="_blank" rel="noreferrer">افتح على الخريطة</a>}</article>)}</div></section>; }
+function BranchMap() { const mapRef = useRef(null); const locations = branches.filter((branch) => branch.lat && branch.lng); useEffect(() => { if (!locations.length || !mapRef.current) return; let map; import("leaflet").then((L) => { map = L.map(mapRef.current).setView([locations[0].lat, locations[0].lng], 10); L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" }).addTo(map); locations.forEach((branch) => L.marker([branch.lat, branch.lng]).addTo(map).bindPopup(branch.name)); }); return () => map?.remove(); }, []); return locations.length ? <div className="branch-map" ref={mapRef} /> : <div className="branch-map-empty">تواصل معنا لمعرفة أقرب فرع كريم فارما.</div>; }
+function Branches() { return <section className="page wrap"><SectionTitle eyebrow="خدمة الصيدليات" title="فروع كريم فارما" text="فريقنا يساعدك في الوصول لأقرب فرع." /><BranchMap /><div className="branches-grid">{branches.map((branch) => <article className="branch-card" key={branch.id}><h3>{branch.name}</h3><p>{branch.address || "تواصل معنا لمعرفة تفاصيل الفرع."}</p>{branch.googleMapsUrl && <a href={branch.googleMapsUrl} target="_blank" rel="noreferrer">افتح على الخريطة</a>}</article>)}</div></section>; }
 
-function Rules() { return <section className="page wrap rules-layout"><div><SectionTitle eyebrow="ببساطة" title="قواعد المشاركة" /><div className="rules-card">{["التوقعات تفتح لمباريات اليوم وبكرة فقط.", "توقع واحد لكل صيدلية ورقم واتساب لكل مباراة.", "يمكن تعديل التوقع قبل بداية المباراة.", "الفائزون يتم التواصل معهم عبر واتساب.", "الجوائز تخضع للتوافر وشروط الحملة."].map((rule, index) => <p key={rule}><b>{index + 1}</b>{rule}</p>)}</div></div><article className="prize-card"><img src={assetPaths.cheerBox} alt="بوكس التشجيع" /><h2>بوكس التشجيع من كريم فارما</h2><p>تيشيرت منتخب مصر + كاب تشجيع + هدايا ومفاجآت مجانية.</p></article></section>; }
+function Rules() { return <section className="page wrap rules-layout"><div><SectionTitle eyebrow="ببساطة" title="قواعد المشاركة" /><div className="rules-card">{["التوقعات مفتوحة لأول ٣ أيام من البطولة ولكل مباريات منتخب مصر.", "توقع واحد لكل صيدلية ورقم واتساب لكل مباراة.", "يمكن تعديل التوقع قبل بداية المباراة.", "الفائزون يتم التواصل معهم عبر واتساب.", "الجوائز تخضع للتوافر وشروط الحملة."].map((rule, index) => <p key={rule}><b>{index + 1}</b>{rule}</p>)}</div></div><article className="prize-card"><img src={assetPaths.cheerBox} alt="بوكس التشجيع" /><h2>بوكس التشجيع من كريم فارما</h2><p>تيشيرت منتخب مصر + كاب تشجيع + هدايا ومفاجآت مجانية.</p></article></section>; }
 
 function AdminDemo() {
   const [predictions, setPredictions] = useState(getPredictions); const [spins, setSpins] = useState(getSpins); const [results, setResults] = useState(getMatchResults); const [resultForm, setResultForm] = useState({ id: "1", scoreA: "", scoreB: "", status: "finished" });
   const downloadCsv = (rows, name, fields = Object.keys(rows[0] || {})) => { if (!rows.length) return; const csv = [fields, ...rows.map((row) => fields.map((field) => `"${String(row[field] ?? "").replaceAll('"', '""')}"`))].map((row) => row.join(",")).join("\n"); const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" })); link.download = name; link.click(); URL.revokeObjectURL(link.href); };
-  const predictionFields = ["pharmacyName", "contactName", "whatsapp", "governorate", "customerCode", "isCurrentCustomer", "onlineOrderingInterest", "currentOrderingMethod", "favoriteTeams", "matchId", "prediction", "createdAt", "updatedAt"];
+  const predictionFields = ["pharmacyName", "contactName", "whatsapp", "governorate", "customerCode", "isCurrentCustomer", "onlineOrderingInterest", "currentOrderingMethod", "wantsContact", "favoriteTeams", "matchId", "prediction", "createdAt", "updatedAt"];
   const saveResult = (event) => { event.preventDefault(); saveMatchResult({ ...resultForm, scoreA: Number(resultForm.scoreA), scoreB: Number(resultForm.scoreB) }); setResults(getMatchResults()); };
   const clear = () => { if (window.confirm("مسح كل البيانات التجريبية؟")) { clearDemoData(); setPredictions([]); setSpins([]); setResults([]); } };
   return <section className="page wrap admin-page"><div className="admin-note">وضع تجريبي محلي - سيتم استبداله لاحقًا بقاعدة بيانات Supabase</div><SectionTitle eyebrow="للعرض التجريبي" title="لوحة المتابعة المحلية" /><div className="admin-stats"><article><b>{predictions.length}</b><span>توقعات</span></article><article><b>{spins.length}</b><span>لفات عجلة</span></article><article><b>{results.length}</b><span>نتائج</span></article></div><div className="admin-actions"><button onClick={() => downloadCsv(predictions, "predictions.csv", predictionFields)}>تصدير التوقعات CSV</button><button onClick={() => downloadCsv(spins, "wheel-spins.csv")}>تصدير اللفات CSV</button><button className="danger" onClick={clear}>مسح البيانات</button></div><form className="admin-result-form" onSubmit={saveResult}><h3>تحديث نتيجة محلية</h3><select value={resultForm.id} onChange={(e) => setResultForm({ ...resultForm, id: e.target.value })}>{matchesData.map((match) => <option key={match.id} value={match.id}>#{match.id} {match.teamA} - {match.teamB}</option>)}</select><input required type="number" min="0" value={resultForm.scoreA} onChange={(e) => setResultForm({ ...resultForm, scoreA: e.target.value })} placeholder="نتيجة الفريق الأول" /><input required type="number" min="0" value={resultForm.scoreB} onChange={(e) => setResultForm({ ...resultForm, scoreB: e.target.value })} placeholder="نتيجة الفريق الثاني" /><button>حفظ النتيجة</button></form></section>;
