@@ -126,10 +126,10 @@ function Home() {
     <section className="hero hero-compact wrap">
       <div className="hero-copy">
         {profile?.pharmacyName && <div className="pharmacy-greeting">أهلاً {profile.pharmacyName}</div>}
-        <span className="pill">🇪🇬 منصة التشجيع للصيدليات</span>
+        <span className="pill">حملة كريم فارما للصيدليات</span>
         <h1><em>شجع بلدك</em></h1>
         <p>توقع النتيجة واكسب بوكس التشجيع من كريم فارما</p>
-        <div className="actions"><a className="btn primary" href="#today">توقع مباريات اليوم</a><Link className="btn ghost" to="/wheel">لف عجلة الحظ</Link></div>
+        <div className="actions"><a className="btn primary" href="#today">ابدأ التوقع</a><Link className="btn ghost" to="/wheel">لف عجلة الحظ</Link></div>
       </div>
       <div className="hero-visual"><img className="flag-backdrop" src={assetPaths.egyptFlag} alt="" /><img className="cheer-box hero-box" src={assetPaths.cheerBox} alt="بوكس التشجيع من كريم فارما" /></div>
     </section>
@@ -138,7 +138,7 @@ function Home() {
       <div className="home-match-grid">{todayList.map((match) => <MatchCard match={match} key={match.id} />)}</div>
     </section>
     <section className="wrap campaign-section">
-      <SectionTitle eyebrow="شارك صيدليتك" title="التوقعات مفتوحة الآن" text="التوقع متاح لمباريات اليوم وبكرة فقط." />
+      <SectionTitle eyebrow="شارك صيدليتك" title={openMatches.length ? "التوقعات مفتوحة الآن" : "التوقعات تفتح قريبًا"} text="التوقع متاح لمباريات اليوم وبكرة فقط." />
       {openMatches.length ? <div className="home-match-grid">{openMatches.slice(0, 3).map((match) => <MatchCard match={match} key={match.id} />)}</div> : <EmptyCard text="التوقعات هتفتح قبل أقرب مباراة بيوم. ارجع لنا قريبًا." />}
     </section>
     <section className="wrap prize-feature campaign-section">
@@ -186,8 +186,8 @@ function Matches() {
     return searched && selected && (stage === "all" || match.stage === stage);
   }), [matches, query, filter, stage]);
   return <section className="page wrap">
-    <SectionTitle eyebrow="كأس العالم 2026" title="جدول مباريات البطولة" text="سيتم تحديث الفرق والمواعيد النهائية حسب الجدول الرسمي للبطولة." />
-    <div className="featured-egypt"><b>🇪🇬</b><div><h3>منتخب مصر</h3><p>مباريات مصر هتظهر هنا بعد إدخال الجدول الرسمي.</p></div><span>قريبًا</span></div>
+    <SectionTitle eyebrow="كأس العالم 2026" title="جدول مباريات البطولة" text="الجدول الرسمي للبطولة بتوقيت القاهرة." />
+    <div className="featured-egypt"><b>🇪🇬</b><div><h3>تابع مباريات منتخب مصر</h3><p>شجع منتخبنا وسجل توقع صيدليتك قبل الماتش.</p></div><span>{matches.filter((match) => match.teamA === "مصر" || match.teamB === "مصر").length} مباريات</span></div>
     <div className="filter-panel"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="دور على فريق..." /><select value={stage} onChange={(event) => setStage(event.target.value)}><option value="all">كل الأدوار</option>{[...new Set(matches.map((match) => match.stage))].map((value) => <option key={value}>{value}</option>)}</select><div className="filter-chips">{[["all", "الكل"], ["today", "اليوم"], ["tomorrow", "بكرة"], ["upcoming", "القادمة"], ["finished", "النتائج"]].map(([value, label]) => <button className={filter === value ? "active" : ""} onClick={() => setFilter(value)} key={value}>{label}</button>)}</div></div>
     <div className="matches-grid">{filtered.map((match) => <MatchCard match={match} key={match.id} />)}</div>{!filtered.length && <EmptyCard text="مفيش مباريات مطابقة للبحث." />}
   </section>;
@@ -226,12 +226,22 @@ function RadioField({ label, name, options, value, onChange }) { return <div cla
 
 function Results() { const finished = getMatches().filter((match) => match.status === "finished"); return <section className="page wrap"><SectionTitle eyebrow="النتائج" title="نتائج المباريات" text="كل النتائج بتوقيت القاهرة." />{finished.length ? <div className="matches-grid">{finished.map((match) => <MatchCard match={match} noAction resultOnly key={match.id} />)}</div> : <EmptyCard text="النتائج هتظهر هنا مع بداية البطولة." />}</section>; }
 
-function Leaderboard() { return <section className="page wrap"><SectionTitle eyebrow="أبطال التشجيع" title="لوحة شرف الصيدليات" text="توقع صح واجمع نقاط لصيدليتك." /><div className="leader-grid"><article className="leader-card"><h3>🏆 أفضل الصيدليات</h3>{pharmacies.map(([name, governorate, points], index) => <div className="rank-row" key={name}><b>{["🥇", "🥈", "🥉"][index] || index + 1}</b><div><strong>{name}</strong><small>{governorate}</small></div><em>{points} نقطة</em></div>)}</article><article className="leader-card"><h3>📍 أفضل المحافظات</h3><p>١. القاهرة</p><p>٢. الدقهلية</p><p>٣. الشرقية</p></article></div></section>; }
+function Leaderboard() {
+  const governorateRanks = [["القاهرة", 448], ["الدقهلية", 382], ["الشرقية", 341]];
+  return <section className="page wrap">
+    <SectionTitle eyebrow="أبطال التشجيع" title="لوحة شرف الصيدليات" text="كل توقع صحيح يقرب صيدليتك من الصدارة." />
+    <div className="leader-highlight"><b>🏆</b><div><span>المنافسة مستمرة</span><h3>خلي صيدليتك في أول القائمة</h3><p>شارك توقعاتك واجمع نقاط أكتر مع كل ماتش.</p></div></div>
+    <div className="leader-grid">
+      <article className="leader-card"><h3>أفضل الصيدليات</h3>{pharmacies.map(([name, governorate, points], index) => <div className={`rank-row ${index < 3 ? "top-rank" : ""}`} key={name}><b className="rank-medal">{["🥇", "🥈", "🥉"][index] || index + 1}</b><div><strong>{name}</strong><small>{governorate}</small></div><em>{points} نقطة</em></div>)}</article>
+      <article className="leader-card governorates-card"><h3>أفضل المحافظات</h3>{governorateRanks.map(([name, points], index) => <div className="rank-row" key={name}><b className="rank-medal">{index + 1}</b><div><strong>{name}</strong><small>ترتيب المحافظات</small></div><em>{points} نقطة</em></div>)}</article>
+    </div>
+  </section>;
+}
 
-function Wheel() { const [whatsapp, setWhatsapp] = useState(""); const [rotation, setRotation] = useState(0); const [spinning, setSpinning] = useState(false); const [result, setResult] = useState(""); const spin = () => { const digits = whatsapp.replace(/\D/g, ""); const date = todayCairo(); if (!digits || spinning) return; if (getSpins().some((row) => row.whatsapp === digits && row.date === date)) return setResult("خدت لفتك النهارده، ارجع لنا بكرة."); const prize = wheelPrizes[Math.floor(Math.random() * wheelPrizes.length)]; setSpinning(true); setRotation((value) => value + 1440); setTimeout(() => { saveSpin({ whatsapp: digits, date, prize, createdAt: new Date().toISOString() }); setResult(`نتيجتك: ${prize}`); setSpinning(false); }, 3000); }; return <section className="page wrap wheel-layout"><div><SectionTitle eyebrow="لفة يومية" title="لف العجلة وعيش التشجيع" text="ادخل رقم واتساب وخد لفتك اليومية." /><div className="wheel-form"><input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="رقم واتساب" /><button className="btn primary" onClick={spin}>{spinning ? "العجلة بتلف..." : "لف العجلة"}</button></div>{result && <div className="wheel-result">{result}</div>}</div><div className="wheel-stage"><div className="wheel-pointer">▼</div><div className="wheel" style={{ transform: `rotate(${rotation}deg)` }}>{wheelPrizes.map((prize, index) => <span style={{ transform: `rotate(${index * 51.4}deg)` }} key={prize}>{prize}</span>)}</div></div><img className="wheel-box visible-box" src={assetPaths.cheerBox} alt="بوكس التشجيع" /></section>; }
+function Wheel() { const [whatsapp, setWhatsapp] = useState(""); const [rotation, setRotation] = useState(0); const [spinning, setSpinning] = useState(false); const [result, setResult] = useState(""); const spin = () => { const digits = whatsapp.replace(/\D/g, ""); const date = todayCairo(); if (!digits || spinning) return; if (getSpins().some((row) => row.whatsapp === digits && row.date === date)) return setResult("خدت لفتك النهارده، ارجع لنا بكرة."); const prize = wheelPrizes[Math.floor(Math.random() * wheelPrizes.length)]; setSpinning(true); setRotation((value) => value + 1440); setTimeout(() => { saveSpin({ whatsapp: digits, date, prize, createdAt: new Date().toISOString() }); setResult(`نتيجتك: ${prize}`); setSpinning(false); }, 3000); }; return <section className="page wrap wheel-layout"><div><SectionTitle eyebrow="جوائز يومية للصيدليات" title="لف واربح مع كريم فارما" text="ادخل رقم واتساب وخد لفتك اليومية." /><div className="wheel-form"><input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="رقم واتساب" /><button className="btn primary" onClick={spin}>{spinning ? "العجلة بتلف..." : "لف العجلة"}</button></div><small className="availability">لفة واحدة كل يوم لكل رقم واتساب.</small>{result && <div className="wheel-result">{result}</div>}</div><div className="wheel-stage"><div className="wheel-pointer">▼</div><div className="wheel" style={{ transform: `rotate(${rotation}deg)` }}>{wheelPrizes.map((prize, index) => <span style={{ transform: `rotate(${index * 51.4}deg)` }} key={prize}>{prize}</span>)}</div></div><img className="wheel-box visible-box" src={assetPaths.cheerBox} alt="بوكس التشجيع" /></section>; }
 
-function OfferCard({ offer }) { return <article className="offer-card"><span>{offer.validUntil}</span><h4>{offer.title}</h4><p>{offer.description}</p><a href={offerUrl} target="_blank" rel="noreferrer">اطلب الآن</a></article>; }
-function Offers() { return <section className="page wrap"><SectionTitle eyebrow="للصيدليات" title="عروض البطولة للصيدليات" text="عروض لفترة محدودة. تواصل معنا واعرف التفاصيل." />{[...new Set(offers.map((offer) => offer.section))].map((section) => <div className="offers-section" key={section}><h3>{section}</h3><div className="offers-grid">{offers.filter((offer) => offer.section === section).map((offer) => <OfferCard offer={offer} key={offer.id} />)}</div></div>)}</section>; }
+function OfferCard({ offer }) { return <article className={`offer-card ${offer.id === 1 ? "featured-offer" : ""}`}><span>{offer.validUntil}</span><h4>{offer.title}</h4><p>{offer.description}</p><a href={offerUrl} target="_blank" rel="noreferrer">اطلب العرض على واتساب</a></article>; }
+function Offers() { return <section className="page wrap"><SectionTitle eyebrow="خصيصًا للصيدليات" title="عروض كريم فارما" text="اختار العرض واطلبه مباشرة على واتساب." />{[...new Set(offers.map((offer) => offer.section))].map((section) => <div className="offers-section" key={section}><h3>{section}</h3><div className="offers-grid">{offers.filter((offer) => offer.section === section).map((offer) => <OfferCard offer={offer} key={offer.id} />)}</div></div>)}</section>; }
 
 function BranchMap() { const mapRef = useRef(null); const locations = branches.filter((branch) => branch.lat && branch.lng); useEffect(() => { if (!locations.length || !mapRef.current) return; let map; import("leaflet").then((L) => { map = L.map(mapRef.current).setView([locations[0].lat, locations[0].lng], 10); L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" }).addTo(map); locations.forEach((branch) => L.marker([branch.lat, branch.lng]).addTo(map).bindPopup(branch.name)); }); return () => map?.remove(); }, []); return locations.length ? <div className="branch-map" ref={mapRef} /> : <div className="branch-map-empty">الخريطة هتظهر هنا مع إضافة بيانات الفروع.</div>; }
 function Branches() { return <section className="page wrap"><SectionTitle eyebrow="قريبًا" title="فروع كريم فارما" text="هتلاقي بيانات الفروع وطرق التواصل هنا." /><BranchMap /><div className="branches-grid">{branches.map((branch) => <article className="branch-card" key={branch.id}><h3>{branch.name}</h3><p>{branch.address || "سيتم إضافة بيانات الفروع قريبًا"}</p>{branch.googleMapsUrl && <a href={branch.googleMapsUrl} target="_blank" rel="noreferrer">افتح على الخريطة</a>}</article>)}</div></section>; }
