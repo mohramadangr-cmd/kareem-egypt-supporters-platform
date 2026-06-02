@@ -13,7 +13,7 @@ create table if not exists public.pharmacies (
   is_current_customer text,
   online_ordering_interest text,
   preferred_ordering_method text,
-  wants_contact text,
+  wants_contact boolean,
   favorite_teams text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -27,6 +27,7 @@ create table if not exists public.predictions (
   team_b text not null,
   score_a integer not null,
   score_b integer not null,
+  points integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (pharmacy_id, match_id)

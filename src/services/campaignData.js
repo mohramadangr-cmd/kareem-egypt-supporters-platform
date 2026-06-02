@@ -39,7 +39,7 @@ const toPharmacyRow = (profile) => ({
   is_current_customer: profile.isCurrentCustomer || null,
   online_ordering_interest: profile.onlineOrderingInterest || null,
   preferred_ordering_method: profile.currentOrderingMethod || null,
-  wants_contact: profile.wantsContact || null,
+  wants_contact: profile.wantsContact ? profile.wantsContact === "نعم" : null,
   favorite_teams: profile.favoriteTeams?.trim() || null
 });
 
