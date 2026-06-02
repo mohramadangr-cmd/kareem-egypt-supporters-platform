@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import matchesData from "./data/matches.json";
 import offers from "./data/offers.json";
