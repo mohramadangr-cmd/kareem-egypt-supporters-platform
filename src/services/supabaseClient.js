@@ -1,4 +1,11 @@
-// Future integration placeholder. The demo intentionally runs without external keys.
-export const isSupabaseConfigured = () => false;
-export const savePredictionToSupabase = async () => null;
-export const saveSpinToSupabase = async () => null;
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL?.trim();
+const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY?.trim();
+
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+export const supabase = isSupabaseConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    })
+  : null;
