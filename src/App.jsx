@@ -15,17 +15,29 @@ import {
 } from "./services/storage";
 import {
   loadAdminTables,
-  loadLeaderboard,
   normalizeWhatsapp,
   spinWheel,
   submitPrediction,
-  trackLeadEvent
+  trackLeadEvent,
+  upsertPharmacy
 } from "./services/campaignData";
 import { isSupabaseConfigured } from "./services/supabaseClient";
+import {
+  awardAppInterestPoints,
+  awardContactRequestPoints,
+  awardRegistrationBonus,
+  getLeaderboard as getPointsLeaderboard,
+  getPharmacyDashboard,
+  getPharmacyTotalPoints,
+  addManualPoints,
+  markGrandDrawQualified,
+  updateAppOrdersProgress,
+  scoreMatchPredictions
+} from "./services/pointsService";
 
 const { assetPaths } = campaign;
 const governorates = ["القاهرة", "الجيزة", "الإسكندرية", "الدقهلية", "الشرقية", "الغربية", "المنوفية", "القليوبية", "البحيرة", "الفيوم", "المنيا", "أسيوط", "سوهاج", "قنا", "أسوان", "أخرى"];
-const wheelPrizes = ["تيشيرت منتخب مصر", "كاب تشجيع", "كرة صغيرة تذكارية", "ميدالية تذكارية", "نقاط إضافية", "هدية مفاجأة من كريم فارما", "حظ أوفر"];
+const wheelPrizes = ["+10 نقطة", "+30 نقطة", "+50 نقطة", "+100 نقطة", "حظ أوفر", "جرّب تاني بكرة", "دخول سحب خاص", "كاب تشجيع", "خصم خاص", "هدية مفاجأة"];
 const pharmacies = [
   ["صيدلية النور", "القاهرة", 192],
   ["صيدلية الحياة", "الجيزة", 175],
@@ -61,8 +73,7 @@ const trackClicks = (...events) => () => events.forEach(([eventType, source, dat
 
 function App() {
   return <div className="app-shell">
-    <div className="stadium-lights" />
-    <div className="confetti" aria-hidden="true">{Array.from({ length: 24 }, (_, index) => <i key={index} />)}</div>
+    <div className="campaign-lights" />
     <AnnouncementBar />
     <Header />
     <main><Routes>
@@ -79,7 +90,7 @@ function App() {
       <Route path="/admin-demo" element={<AdminDemo />} />
       <Route path="*" element={<NotFound />} />
     </Routes></main>
-    <Footer /><Link className="floating-predict" to="/matches">توقع الآن</Link><BottomNav />
+    <Footer /><Link className="floating-predict" to="/matches">زود نقاطك</Link><BottomNav />
   </div>;
 }
 
@@ -92,13 +103,13 @@ function Header() {
     <a className="header-cta" href={contactUrl} target="_blank" rel="noreferrer" onClick={trackClick("whatsapp_clicked", "header")}>تواصل معنا</a>
   </header>;
 }
-function AnnouncementBar() { return <div className="announcement"><div>{Array.from({ length: 3 }, (_, index) => <span key={index}>شجع بلدك • اربح بوكس التشجيع من كريم فارما • توقع النتيجة الآن • جرّب تطبيق كريم فارما للطلبات</span>)}</div></div>; }
+function AnnouncementBar() { return <div className="announcement"><div>{Array.from({ length: 3 }, (_, index) => <span key={index}>حملة للصيدليات فقط • سجل صيدليتك وخد 100 نقطة • جرّب تطبيق كريم فارما واجمع نقاط أكتر</span>)}</div></div>; }
 
 function BottomNav() {
   return <nav className="bottom-nav">
     {[
       ["/", "⌂", "الرئيسية"],
-      ["/#today", "⚽", "اليوم"],
+      ["/#today", "+", "نقاط"],
       ["/matches", "★", "توقع"],
       ["/wheel", "✦", "العجلة"],
       ["/offers", "٪", "العروض"]
@@ -108,7 +119,7 @@ function BottomNav() {
 
 function Footer() {
   return <footer>
-    <p>كريم فارما بتشجع منتخب مصر في كأس العالم ⚽</p>
+    <p>دوري الصيدليات مع كريم فارما: نقاط وسحوبات للصيدليات أثناء كأس العالم</p>
     <div className="footer-links">
       <a href={contactUrl} target="_blank" rel="noreferrer" onClick={trackClick("whatsapp_clicked", "footer")}>واتساب: 01145000445</a>
       <a href="https://www.facebook.com/KareemPharmaOfficial/" target="_blank" rel="noreferrer">فيسبوك كريم فارما</a>
@@ -121,43 +132,75 @@ function SectionTitle({ eyebrow, title, text, action, link }) {
   return <div className="section-title-row"><div className="section-title"><span>{eyebrow}</span><h2>{title}</h2>{text && <p>{text}</p>}</div>{action && <Link to={link}>{action} ←</Link>}</div>;
 }
 
+const emptyProfile = { pharmacyName: "", contactName: "", whatsapp: "", governorate: "", customerCode: "", isCurrentCustomer: "", onlineOrderingInterest: "", currentOrderingMethod: "", wantsContact: "", favoriteTeams: "" };
+
+function CampaignRegistration({ onRegistered }) {
+  const [form, setForm] = useState(emptyProfile); const [submitting, setSubmitting] = useState(false); const [notice, setNotice] = useState("");
+  const submit = async (event) => {
+    event.preventDefault(); setSubmitting(true); setNotice("");
+    try {
+      const saved = await upsertPharmacy(form);
+      const pharmacyId = saved.pharmacy?.id || `local:${normalizeWhatsapp(form.whatsapp)}`;
+      await awardRegistrationBonus(pharmacyId);
+      if (form.wantsContact === "نعم") await awardContactRequestPoints(pharmacyId);
+      onRegistered({ ...form, whatsapp: normalizeWhatsapp(form.whatsapp) });
+    } catch (error) { console.error("[Registration]", error); setNotice("حصلت مشكلة بسيطة. حاول تسجل صيدليتك مرة تانية."); }
+    finally { setSubmitting(false); }
+  };
+  return <section id="register" className="wrap campaign-section registration-feature">
+    <div><span>ابدأ من هنا</span><h2>سجل صيدليتك وخد 100 نقطة فورًا</h2><p>بيانات بسيطة تفتح لك التوقعات والعجلة ونظام نقاط دوري الصيدليات.</p></div>
+    <form onSubmit={submit}>
+      <input required placeholder="اسم الصيدلية" value={form.pharmacyName} onChange={(e) => setForm({ ...form, pharmacyName: e.target.value })} />
+      <input required placeholder="اسم الصيدلي أو المسؤول" value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} />
+      <input required inputMode="tel" placeholder="رقم واتساب" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} />
+      <select required value={form.governorate} onChange={(e) => setForm({ ...form, governorate: e.target.value })}><option value="">اختار المحافظة</option>{governorates.map((value) => <option key={value}>{value}</option>)}</select>
+      <RadioField label="هل ترغب أن يتواصل معك فريق كريم فارما؟" name="register-contact" options={["نعم", "لا"]} required={false} value={form.wantsContact} onChange={(value) => setForm({ ...form, wantsContact: value })} />
+      {notice && <div className="notice">{notice}</div>}<button className="btn primary" disabled={submitting}>{submitting ? "جاري تسجيل صيدليتك..." : "سجل صيدليتك وخد 100 نقطة"}</button>
+    </form>
+  </section>;
+}
+
+function EarnPoints() {
+  const items = [["سجل صيدليتك", "+100"], ["توقع مباراة", "+10"], ["لف العجلة يوميًا", "+5"], ["جرّب تطبيق كريم فارما", "+100"], ["أول طلب من التطبيق", "+200"], ["10 طلبات من التطبيق", "+1000 + سحب كبير"]];
+  return <section id="points" className="wrap campaign-section earn-points"><SectionTitle eyebrow="كل خطوة ليها مكافأة" title="كيف تزود نقاطك؟" text="اجمع نقاط أكتر وارفع ترتيب صيدليتك في دوري كريم فارما." /><div>{items.map(([label, points]) => <article key={label}><b>{points}</b><span>{label}</span></article>)}</div></section>;
+}
+
+function AppLaunch({ profile, onReward }) {
+  const click = async () => {
+    const dashboard = profile?.whatsapp ? await getPharmacyDashboard(profile) : null;
+    void trackLeadEvent("app_cta_clicked", { source: "home_app" }, dashboard?.pharmacyId);
+    void trackLeadEvent("whatsapp_clicked", { source: "home_app" }, dashboard?.pharmacyId);
+    if (dashboard?.pharmacyId) { await awardAppInterestPoints(dashboard.pharmacyId); onReward?.(); }
+  };
+  const contactClick = async () => {
+    const dashboard = profile?.whatsapp ? await getPharmacyDashboard(profile) : null;
+    void trackLeadEvent("contact_request_clicked", { source: "app_contact" }, dashboard?.pharmacyId);
+    void trackLeadEvent("whatsapp_clicked", { source: "app_contact" }, dashboard?.pharmacyId);
+    if (dashboard?.pharmacyId) { await awardContactRequestPoints(dashboard.pharmacyId); onReward?.(); }
+  };
+  return <section className="wrap app-promo app-launch campaign-section"><div><span>حملة إطلاق تطبيق كريم فارما للصيدليات أثناء كأس العالم</span><h2>اطلب من تطبيق كريم فارما واجمع نقاط أكتر</h2><p>كل طلب من تطبيق كريم فارما خلال فترة البطولة يقرب صيدليتك من السحب الكبير.</p><div className="app-rewards"><b>أول طلب <small>+200 نقطة</small></b><b>كل طلب <small>+50 نقطة</small></b><b>10 طلبات <small>+1000 نقطة + دخول السحب الكبير</small></b></div><div className="actions"><a className="btn primary" href={contactUrl} target="_blank" rel="noreferrer" onClick={click}>جرّب تطبيق كريم فارما</a><a className="btn ghost" href={contactUrl} target="_blank" rel="noreferrer" onClick={contactClick}>اطلب من فريق كريم فارما يتواصل معك</a></div></div><b>APP</b></section>;
+}
+
 function Home() {
-  const matches = getMatches();
-  const openMatches = matches.filter(canPredict);
-  const profile = getProfile();
+  const matches = getMatches(); const openMatches = matches.filter(canPredict); const [profile, setProfile] = useState(getProfile); const [dashboard, setDashboard] = useState(null); const refresh = () => profile?.whatsapp && getPharmacyDashboard(profile).then(setDashboard).catch((error) => console.error("[Dashboard]", error));
+  useEffect(refresh, [profile?.whatsapp]);
+  const predictions = getPredictions().filter((row) => normalizeWhatsapp(row.whatsapp) === profile?.whatsapp).length; const spins = getSpins().filter((row) => normalizeWhatsapp(row.whatsapp) === profile?.whatsapp).length;
   return <>
-    <section className="hero hero-compact wrap">
-      <div className="hero-copy">
-        {profile?.pharmacyName && <div className="pharmacy-greeting">أهلاً {profile.pharmacyName}</div>}
-        <span className="pill">حملة كريم فارما للصيدليات</span>
-        <h1><em>شجع بلدك</em></h1>
-        <p>توقع النتيجة واكسب بوكس التشجيع من كريم فارما</p>
-        <div className="actions"><a className="btn primary" href="#predict-now">توقع الآن</a><Link className="btn ghost" to="/wheel">لف عجلة الحظ</Link></div>
-        <div className="hero-proof">{[["١٢٠٠", "صيدلية مشاركة"], ["٣٨٥٠", "توقع مسجل"], ["١٥٠", "جائزة موزعة"]].map(([value, label]) => <span key={label}><strong>{value}</strong>{label}</span>)}</div>
-      </div>
+    <section className="hero hero-compact wrap loyalty-hero">
+      <div className="hero-copy">{profile?.pharmacyName && <div className="pharmacy-greeting">أهلاً {profile.pharmacyName}</div>}<span className="pill">حملة كريم فارما للصيدليات فقط</span><h1><em>دوري الصيدليات مع كريم فارما</em></h1><p>شجع مصر، اجمع نقاط، واكسب مع كريم فارما</p><small>سجل صيدليتك وشارك في توقعات كأس العالم وعجلة الحظ وسحوبات تطبيق كريم فارما.</small><div className="actions">{profile ? <><a className="btn primary" href="#predict-now">زود نقاطك الآن</a><Link className="btn ghost" to="/wheel">لف العجلة اليومية</Link></> : <><a className="btn primary" href="#register">سجل صيدليتك وخد 100 نقطة</a><a className="btn ghost" href="#points">اعرف نظام النقاط</a></>}</div></div>
       <div className="hero-visual"><img className="flag-backdrop" src={assetPaths.egyptFlag} alt="" /><img className="cheer-box hero-box" src={assetPaths.cheerBox} alt="بوكس التشجيع من كريم فارما" /></div>
     </section>
-    <section id="predict-now" className="wrap prediction-spotlight campaign-section">
-      <div className="prediction-spotlight-head"><div><span>التوقعات مفتوحة الآن</span><h2>توقع الآن واكسب مع كريم فارما</h2><p>اختار الماتش وسجل توقع صيدليتك في خطوات بسيطة.</p></div><b>{openMatches.length}<small>ماتش مفتوح</small></b></div>
-      <div className="home-match-grid">{openMatches.slice(0, 4).map((match) => <MatchCard match={match} key={match.id} />)}</div>
-      <div className="prediction-actions"><Link className="btn primary" to="/matches">كل المباريات المفتوحة</Link><Link className="subtle-link" to="/matches">جدول البطولة كامل ←</Link></div>
-    </section>
-    <section className="wrap wheel-home-feature campaign-section">
-      <div><span>جوائز يومية</span><h2>لف العجلة اليومية</h2><p>ادخل رقم واتساب وجرب حظك كل يوم مع كريم فارما.</p><Link className="btn primary" to="/wheel">ابدأ الآن</Link></div>
-      <b>✦</b>
-    </section>
-    <section className="wrap prize-feature campaign-section">
-      <img src={assetPaths.cheerBox} alt="بوكس التشجيع من كريم فارما" />
-      <div><span>الجائزة الكبرى</span><h2>ماذا يوجد داخل بوكس التشجيع؟</h2><p>تيشيرت منتخب مصر • كاب تشجيع • هدايا ومفاجآت • جوائز إضافية</p><Link className="btn primary" to="/matches">ادخل السحب الآن</Link></div>
-    </section>
-    <section className="wrap campaign-section">
-      <SectionTitle eyebrow="للصيدليات" title="عروض البطولة للصيدليات" action="شوف كل العروض" link="/offers" />
-      <div className="offers-grid preview-grid">{offers.slice(0, 3).map((offer) => <OfferCard offer={offer} key={offer.id} />)}</div>
-    </section>
-    <section className="wrap app-promo campaign-section"><div><span>طلبات الصيدليات</span><h2>اطلب مباشرة من تطبيق كريم فارما</h2><p>عروض حصرية • متابعة الطلبات • سهولة الطلب • تجربة أسرع</p><a className="btn primary" href={contactUrl} target="_blank" rel="noreferrer" onClick={trackClicks(["app_cta_clicked", "home_app"], ["whatsapp_clicked", "home_app"])}>اطلب رابط التطبيق</a></div><b>📱</b></section>
-    <section className="wrap about-kareem campaign-section"><div><span>ثقة وخبرة من ٢٠٠٥</span><h2>من هي كريم فارما؟</h2><p>كريم فارما شركة مصرية متخصصة في توزيع الأدوية تأسست عام 2005.</p><p>تُعد واحدة من أكبر شركات توزيع الأدوية في مصر، وحاصلة على شهادة GSDP الخاصة بجودة التخزين والتوزيع الدوائي.</p><p>يرأسها د. رفاعي ربيع رئيس لجنة الموزعين بالشعبة العامة للأدوية.</p><p>هدفنا تقديم خدمة توزيع احترافية تساعد الصيدليات على النمو وتحقيق أفضل تجربة شراء.</p></div><div className="trust-badges"><b><img src={assetPaths.egyptFlag} alt="" /><small>شركة مصرية</small></b><b>✓<small>جودة GSDP</small></b><b>★<small>ثقة الصيدليات</small></b></div></section>
-    <section className="wrap results-home campaign-section"><div><span>نتائج البطولة</span><h2>تابع النتائج وجدول المباريات</h2></div><div><Link className="btn primary" to="/results">شوف النتائج</Link><Link className="btn ghost" to="/matches">جدول البطولة</Link></div></section>
-    <section className="wrap contact-feature campaign-section"><div><span>فريقنا معاك</span><h2>تواصل مع كريم فارما</h2><p>اسأل عن العروض والطلبات وخدمات الصيدليات.</p></div><div><a className="btn primary" href={contactUrl} target="_blank" rel="noreferrer" onClick={trackClick("whatsapp_clicked", "home_contact")}>واتساب 01145000445</a><a className="btn ghost" href="https://www.facebook.com/KareemPharmaOfficial/" target="_blank" rel="noreferrer">فيسبوك</a></div></section>
+    {!profile && <CampaignRegistration onRegistered={setProfile} />}
+    {profile && <section className="wrap campaign-section pharmacy-dashboard"><div><span>رصيد صيدليتك</span><h2>أهلاً {profile.pharmacyName}</h2><p>اختار خطوتك الجاية وزود فرصك في الجوائز.</p></div><div className="dashboard-grid">{[["رصيدك الحالي", `${dashboard?.points || 0} نقطة`], ["ترتيبك", dashboard?.rank ? `#${dashboard.rank}` : "ابدأ اجمع نقاط"], ["توقعاتك", predictions], ["لفات العجلة", spins], ["طلبات التطبيق", `${dashboard?.orderCount || 0} / 10`]].map(([label, value]) => <article key={label}><span>{label}</span><b>{value}</b></article>)}</div></section>}
+    <EarnPoints />
+    <section id="predict-now" className="wrap prediction-spotlight campaign-section"><div className="prediction-spotlight-head"><div><span>زود نقاطك الآن</span><h2>توقعات مفتوحة: كل مباراة = 10 نقاط</h2><p>اختار المباراة وثبت توقع صيدليتك.</p></div><b>{openMatches.length}<small>مباراة مفتوحة</small></b></div><div className="home-match-grid">{openMatches.slice(0, 4).map((match) => <MatchCard match={match} key={match.id} />)}</div><div className="prediction-actions"><Link className="btn primary" to="/matches">كل المباريات المفتوحة</Link><Link className="subtle-link" to="/matches">جدول البطولة كامل ←</Link></div></section>
+    <section className="wrap wheel-home-feature campaign-section"><div><span>+5 نقاط مشاركة يوميًا</span><h2>لف العجلة اليومية</h2><p>كل لفة تضيف نقاط مشاركة، وممكن تكسب نقاط أو جائزة إضافية.</p><Link className="btn primary" to="/wheel">لف العجلة الآن</Link></div><b>✦</b></section>
+    <AppLaunch profile={profile} onReward={refresh} />
+    <section className="wrap prize-feature campaign-section"><img src={assetPaths.cheerBox} alt="بوكس التشجيع من كريم فارما" /><div><span>جوائز الحملة</span><h2>اكسب مع كل خطوة لصيدليتك</h2><p>أفضل 5 صيدليات • سحب 10 طلبات من التطبيق • سحوبات مباريات مصر • مفاجآت العجلة</p><Link className="btn primary" to="/rules">اعرف كل الجوائز</Link></div></section>
+    <section className="wrap campaign-section"><SectionTitle eyebrow="للصيدليات" title="عروض كريم فارما" action="شوف كل العروض" link="/offers" /><div className="offers-grid preview-grid">{offers.slice(0, 3).map((offer) => <OfferCard offer={offer} key={offer.id} />)}</div></section>
+    <section className="wrap about-kareem campaign-section"><div><span>ثقة وخبرة من ٢٠٠٥</span><h2>من هي كريم فارما؟</h2><p>كريم فارما شركة مصرية متخصصة في توزيع الأدوية تأسست عام 2005.</p><p>تُعد واحدة من أكبر شركات توزيع الأدوية في مصر، وحاصلة على شهادة GSDP الخاصة بجودة التخزين والتوزيع الدوائي.</p><p>يرأسها د. رفاعي ربيع رئيس لجنة الموزعين بالشعبة العامة للأدوية.</p><p>هدفنا تقديم خدمة توزيع احترافية تساعد الصيدليات على النمو وتحقيق أفضل تجربة شراء.</p></div><div className="trust-badges"><b>٢٠٠٥<small>خبرة ممتدة</small></b><b>✓<small>جودة GSDP</small></b><b>★<small>توزيع للصيدليات</small></b></div></section>
+    <section className="wrap results-home campaign-section"><div><span>كأس العالم 2026</span><h2>مباريات مصر وجدول البطولة</h2></div><div><Link className="btn primary" to="/matches">شوف المباريات</Link><Link className="btn ghost" to="/results">النتائج</Link></div></section>
+    <section className="wrap contact-feature campaign-section"><div><span>فريقنا معاك</span><h2>تواصل مع كريم فارما</h2><p>اسأل عن التطبيق والعروض وخدمات الصيدليات.</p></div><div><a className="btn primary" href={contactUrl} target="_blank" rel="noreferrer" onClick={trackClick("whatsapp_clicked", "home_contact")}>واتساب 01145000445</a><a className="btn ghost" href="https://www.facebook.com/KareemPharmaOfficial/" target="_blank" rel="noreferrer">فيسبوك</a></div></section>
   </>;
 }
 
@@ -169,11 +212,11 @@ function MatchCard({ match, noAction = false, resultOnly = false }) {
   return <article className="match-card">
     <div className="match-meta"><span>{match.stage}{match.group && ` • ${match.group}`}</span><MatchStateBadge state={state} /></div>
     <div className="teams"><div><TeamFlag src={match.teamAFlag} name={match.teamA} /><strong>{match.teamA}</strong></div><span>{match.status === "finished" ? `${match.scoreA} - ${match.scoreB}` : "ضد"}</span><div><TeamFlag src={match.teamBFlag} name={match.teamB} /><strong>{match.teamB}</strong></div></div>
-    <div className="match-bottom"><small>{cairoDate(match)} • {cairoTime(match)}</small>{!noAction && !resultOnly && (state === "open" ? <Link to={`/predict/${match.id}`}>توقع الماتش</Link> : <button disabled>{state === "upcoming" ? "يفتح التوقع قريبًا" : "تم غلق التوقع"}</button>)}</div>
+    <div className="match-bottom"><small>{cairoDate(match)} • {cairoTime(match)}</small>{!noAction && !resultOnly && (state === "open" ? <Link to={`/predict/${match.id}`}>توقع المباراة</Link> : <button disabled>{state === "upcoming" ? "يفتح التوقع قريبًا" : "تم غلق التوقع"}</button>)}</div>
   </article>;
 }
 function getMatchState(match) { if (match.status === "finished") return "finished"; if (isStarted(match)) return "closed"; return canPredict(match) ? "open" : "upcoming"; }
-function MatchStateBadge({ state }) { return <i className={`status ${state}`}>{({ open: "التوقعات مفتوحة", upcoming: "⏳ يفتح التوقع قريبًا", closed: "تم غلق التوقع", finished: "✅ انتهت المباراة" })[state]}</i>; }
+function MatchStateBadge({ state }) { return <i className={`status ${state}`}>{({ open: "التوقعات مفتوحة", upcoming: "يفتح التوقع قريبًا", closed: "تم غلق التوقع", finished: "انتهت المباراة" })[state]}</i>; }
 
 function Matches() {
   const matches = getMatches();
@@ -187,7 +230,7 @@ function Matches() {
   }), [matches, query, filter, stage]);
   return <section className="page wrap">
     <SectionTitle eyebrow="كأس العالم 2026" title="جدول مباريات البطولة" text="الجدول الرسمي للبطولة بتوقيت القاهرة." />
-    <div className="featured-egypt"><img src={assetPaths.egyptFlag} alt="" /><div><h3>تابع مباريات منتخب مصر</h3><p>شجع منتخبنا وسجل توقع صيدليتك قبل الماتش.</p></div><span>{matches.filter((match) => match.teamA === "مصر" || match.teamB === "مصر").length} مباريات</span></div>
+    <div className="featured-egypt"><img src={assetPaths.egyptFlag} alt="" /><div><h3>مباريات منتخب مصر</h3><p>سجل توقع صيدليتك قبل المباراة واجمع نقاط الحملة.</p></div><span>{matches.filter((match) => match.teamA === "مصر" || match.teamB === "مصر").length} مباريات</span></div>
     <div className="filter-panel"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="دور على فريق..." /><select value={stage} onChange={(event) => setStage(event.target.value)}><option value="all">كل الأدوار</option>{[...new Set(matches.map((match) => match.stage))].map((value) => <option key={value}>{value}</option>)}</select><div className="filter-chips">{[["all", "الكل"], ["today", "اليوم"], ["tomorrow", "بكرة"], ["upcoming", "القادمة"], ["finished", "النتائج"]].map(([value, label]) => <button className={filter === value ? "active" : ""} onClick={() => setFilter(value)} key={value}>{label}</button>)}</div></div>
     <div className="matches-grid">{filtered.map((match) => <MatchCard match={match} key={match.id} />)}</div>{!filtered.length && <EmptyCard text="مفيش مباريات مطابقة للبحث." />}
   </section>;
@@ -196,14 +239,14 @@ function Matches() {
 function MatchDetails() {
   const { id } = useParams(); const match = getMatches().find((row) => row.id === id);
   if (!match) return <NotFound />;
-  return <section className="page narrow wrap"><SectionTitle eyebrow="تفاصيل الماتش" title="تفاصيل المباراة" /><MatchCard match={match} noAction />{canPredict(match) ? <div className="center-action"><Link className="btn primary" to={`/predict/${id}`}>سجل توقعك دلوقتي</Link></div> : <div className="notice">التوقع هيفتح قريبًا. تابع المباريات المفتوحة من الصفحة الرئيسية.</div>}</section>;
+  return <section className="page narrow wrap"><SectionTitle eyebrow="تفاصيل المباراة" title="تفاصيل المباراة" /><MatchCard match={match} noAction />{canPredict(match) ? <div className="center-action"><Link className="btn primary" to={`/predict/${id}`}>سجل توقع صيدليتك</Link></div> : <div className="notice">التوقع هيفتح قريبًا. تابع المباريات المفتوحة من الصفحة الرئيسية.</div>}</section>;
 }
 
 function Prediction() {
   const { id } = useParams(); const navigate = useNavigate(); const match = getMatches().find((row) => row.id === id);
   const keyBase = (whatsapp, pharmacyName) => `${pharmacyName.trim()}_${normalizeWhatsapp(whatsapp)}_${id}`;
   const initial = { pharmacyName: "", contactName: "", whatsapp: "", governorate: "", customerCode: "", isCurrentCustomer: "", onlineOrderingInterest: "", currentOrderingMethod: "", wantsContact: "", favoriteTeams: "", scoreA: "", scoreB: "", consent: false, ...getProfile() };
-  const [form, setForm] = useState(initial); const [success, setSuccess] = useState(""); const [locked, setLocked] = useState(false); const [submitting, setSubmitting] = useState(false); const [errorMessage, setErrorMessage] = useState("");
+  const [form, setForm] = useState(initial); const [success, setSuccess] = useState(""); const [successPoints, setSuccessPoints] = useState(false); const [locked, setLocked] = useState(false); const [submitting, setSubmitting] = useState(false); const [errorMessage, setErrorMessage] = useState("");
   if (!match) return <NotFound />;
   if (!canPredict(match)) return <section className="page narrow wrap"><SectionTitle eyebrow="التوقعات" title="التوقع هيفتح قريبًا" /><MatchCard match={match} noAction /><div className="notice">تابع المباريات المفتوحة من الصفحة الرئيسية.</div><Link className="btn ghost back-link" to="/matches">ارجع لجدول المباريات</Link></section>;
   const submit = async (event) => {
@@ -213,6 +256,7 @@ function Prediction() {
     try {
       const result = await submitPrediction({ profile: form, match, scoreA: form.scoreA, scoreB: form.scoreB, key: keyBase(form.whatsapp, form.pharmacyName) });
       setSuccess(result.updated ? "تم تحديث توقع صيدليتك بنجاح" : "تم تسجيل توقع صيدليتك بنجاح");
+      setSuccessPoints(Boolean(result.reward?.awarded));
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
       console.error("[Prediction submit]", error);
@@ -222,7 +266,7 @@ function Prediction() {
     }
   };
   const findExisting = (next) => { const row = getPredictions().find((item) => item.key === keyBase(next.whatsapp, next.pharmacyName)); if (row) setForm(row); setLocked(Boolean(row && isStarted(match))); };
-  if (success) return <section className="page narrow wrap"><div className="success-card"><img src={assetPaths.cheerBox} alt="بوكس التشجيع من كريم فارما" /><h1>{success}</h1><p>بالتوفيق في السحب على بوكس التشجيع من كريم فارما</p><button onClick={() => navigate("/wheel")} className="btn primary">لف عجلة الحظ</button></div></section>;
+  if (success) return <section className="page narrow wrap"><div className="success-card"><img src={assetPaths.cheerBox} alt="بوكس التشجيع من كريم فارما" /><h1>{success}</h1>{successPoints && <strong className="points-earned">تم إضافة 10 نقاط لرصيدك</strong>}<p>بالتوفيق في دوري الصيدليات وسحوبات كريم فارما</p><button onClick={() => navigate("/wheel")} className="btn primary">لف العجلة وخد 5 نقاط</button></div></section>;
   return <section className="page narrow wrap"><SectionTitle eyebrow="توقع واكسب" title="إيه توقع صيدليتك؟" text="سجل بيانات الصيدلية وثبت النتيجة." /><MatchCard match={match} noAction /><form className="prediction-form" onSubmit={submit}>
     <div className="field"><label>اسم الصيدلية</label><input required value={form.pharmacyName} onChange={(e) => { const next = { ...form, pharmacyName: e.target.value }; setForm(next); findExisting(next); }} /></div>
     <div className="field"><label>اسم الصيدلي / المسؤول</label><input required value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} /></div>
@@ -243,14 +287,14 @@ function Results() { const finished = getMatches().filter((match) => match.statu
 
 function Leaderboard() {
   const [rankedPharmacies, setRankedPharmacies] = useState(null);
-  useEffect(() => { loadLeaderboard().then((rows) => rows && setRankedPharmacies(rows)).catch((error) => console.error("[Leaderboard]", error)); }, []);
+  useEffect(() => { getPointsLeaderboard().then((rows) => rows && setRankedPharmacies(rows)).catch((error) => console.error("[Leaderboard]", error)); }, []);
   const governorateRanks = [["القاهرة", 448], ["الدقهلية", 382], ["الشرقية", 341]];
   const rows = rankedPharmacies?.length ? rankedPharmacies.slice(0, 10).map(({ name, governorate, points }) => [name, governorate, points]) : pharmacies;
   return <section className="page wrap">
-    <SectionTitle eyebrow="أبطال التشجيع" title="لوحة شرف الصيدليات" text={rankedPharmacies ? "الترتيب حسب عدد التوقعات المسجلة." : "كل توقع صحيح يقرب صيدليتك من الصدارة."} />
-    <div className="leader-highlight"><b>🏆</b><div><span>المنافسة مستمرة</span><h3>خلي صيدليتك في أول القائمة</h3><p>شارك توقعاتك واجمع نقاط أكتر مع كل ماتش.</p></div></div>
+    <SectionTitle eyebrow="دوري الصيدليات مع كريم فارما" title="لوحة شرف الصيدليات" text="الترتيب حسب إجمالي نقاط صيدليتك في الحملة." />
+    <div className="leader-highlight"><b>Top 5</b><div><span>المنافسة مستمرة</span><h3>خلي صيدليتك في أول القائمة</h3><p>شارك توقعاتك واجمع نقاط أكتر مع كل مباراة وطلب من التطبيق.</p></div></div>
     <div className="leader-grid">
-      <article className="leader-card"><h3>أفضل الصيدليات</h3>{rows.map(([name, governorate, points], index) => <div className={`rank-row ${index < 3 ? "top-rank" : ""}`} key={`${name}-${index}`}><b className="rank-medal">{["🥇", "🥈", "🥉"][index] || index + 1}</b><div><strong>{name}</strong><small>{governorate}</small></div><em>{points} {rankedPharmacies ? "توقع" : "نقطة"}</em></div>)}</article>
+      <article className="leader-card"><h3>منطقة جوائز أفضل 5 صيدليات</h3>{rows.map(([name, governorate, points], index) => <div className={`rank-row ${index < 5 ? "top-rank" : ""}`} key={`${name}-${index}`}><b className="rank-medal">{index + 1}</b><div><strong>{name}</strong><small>{governorate} • {points >= 500 ? "صيدلية من النخبة" : points >= 200 ? "صيدلية منافسة" : "صيدلية مشاركة"}</small></div><em>{points} نقطة</em></div>)}</article>
       <article className="leader-card governorates-card"><h3>أفضل المحافظات</h3>{governorateRanks.map(([name, points], index) => <div className="rank-row" key={name}><b className="rank-medal">{index + 1}</b><div><strong>{name}</strong><small>ترتيب المحافظات</small></div><em>{points} نقطة</em></div>)}</article>
     </div>
   </section>;
@@ -264,13 +308,14 @@ function Wheel() {
     const prize = wheelPrizes[Math.floor(Math.random() * wheelPrizes.length)];
     setSpinning(true);
     try {
-      const saved = await spinWheel({ whatsapp: digits, date, prize, profile: getProfile() || {} });
+      const profile = getProfile() || {}; const saved = await spinWheel({ whatsapp: digits, date, prize, profile });
+      const total = await getPharmacyTotalPoints(saved.pharmacyId || `local:${digits}`);
       if (saved.repeated) {
         setSpinning(false);
-        return setResult(toWheelResult(saved.prize, true));
+        return setResult(toWheelResult(saved.prize, true, total, profile.pharmacyName));
       }
       setRotation((value) => value + 1440);
-      setTimeout(() => { setResult(toWheelResult(saved.prize)); setSpinning(false); }, 3000);
+      setTimeout(() => { setResult(toWheelResult(saved.prize, false, total, profile.pharmacyName)); setSpinning(false); }, 3000);
     } catch (error) {
       console.error("[Wheel spin]", error);
       setSpinning(false);
@@ -278,36 +323,45 @@ function Wheel() {
     }
   };
   return <section className="page wrap wheel-layout">
-    <div><SectionTitle eyebrow="جوائز يومية للصيدليات" title="لف واربح مع كريم فارما" text="ادخل رقم واتساب وخد لفتك اليومية." /><div className="wheel-prizes">{wheelPrizes.slice(0, 6).map((prize) => <span key={prize}>✓ {prize}</span>)}</div><div className="wheel-form"><input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="رقم واتساب" /><button className="btn primary" onClick={spin}>{spinning ? "العجلة بتلف..." : "لف العجلة"}</button></div><small className="availability">لفة واحدة كل يوم لكل رقم واتساب.</small></div>
-    <div className="wheel-stage"><div className="wheel-pointer">▼</div><div className="wheel" style={{ transform: `rotate(${rotation}deg)` }}>{wheelPrizes.map((prize, index) => <span style={{ transform: `rotate(${index * 51.4}deg)` }} key={prize}>{prize}</span>)}</div></div><img className="wheel-box visible-box" src={assetPaths.cheerBox} alt="بوكس التشجيع" />
+    <div><SectionTitle eyebrow="+5 نقاط مشاركة يوميًا" title="لف واربح مع كريم فارما" text="كل لفة تضيف 5 نقاط لصيدليتك، والجائزة ممكن تزود رصيدك أكتر." /><div className="wheel-prizes">{wheelPrizes.map((prize) => <span key={prize}>✓ {prize}</span>)}</div><div className="wheel-form"><input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="رقم واتساب الصيدلية" /><button className="btn primary" onClick={spin}>{spinning ? "العجلة بتلف..." : "لف العجلة"}</button></div><small className="availability">لفة واحدة كل يوم لكل صيدلية.</small></div>
+    <div className="wheel-stage"><div className="wheel-pointer">▼</div><div className="wheel" style={{ transform: `rotate(${rotation}deg)` }}>{wheelPrizes.map((prize, index) => <span style={{ transform: `rotate(${index * 36}deg)` }} key={prize}>{prize}</span>)}</div></div><img className="wheel-box visible-box" src={assetPaths.cheerBox} alt="بوكس التشجيع" />
     {result && <WheelResult result={result} onClose={() => setResult(null)} />}
   </section>;
 }
-function toWheelResult(prize, repeated = false) { return prize === "حظ أوفر" ? { title: "حظ أوفر", message: repeated ? "دي نتيجة لفتك النهارده. ارجع لنا بكرة وجرب من جديد." : "ارجع لنا بكرة وجرب حظك من جديد." } : { title: repeated ? "نتيجة لفتك النهارده" : "مبروك", prize, message: repeated ? "دي نفس جائزتك المسجلة لليوم." : "فريق كريم فارما هيتواصل معاك لتأكيد الجائزة." }; }
-function WheelResult({ result, onClose }) { return <div className="wheel-result-modal" role="dialog" aria-modal="true"><div><span>عجلة كريم فارما</span><h2>{result.title}</h2>{result.prize && <><p>لقد ربحت:</p><strong>{result.prize}</strong></>}<small>{result.message}</small><button className="btn primary" onClick={onClose}>تمام</button></div></div>; }
+function toWheelResult(prize, repeated = false, total = 0, pharmacyName = "") { const noPrize = ["حظ أوفر", "جرّب تاني بكرة"].includes(prize); return { title: noPrize ? "حظ أوفر" : `مبروك${pharmacyName ? ` يا ${pharmacyName}` : ""}`, prize: noPrize ? "" : prize, total, message: repeated ? "دي نفس نتيجة لفتك المسجلة لليوم." : noPrize ? "تم إضافة 5 نقاط مشاركة لرصيدك. جرب تاني بكرة." : "تم إضافة نقاط المشاركة والجائزة لرصيد صيدليتك." }; }
+function WheelResult({ result, onClose }) { return <div className="wheel-result-modal" role="dialog" aria-modal="true"><div><span>عجلة دوري الصيدليات</span><h2>{result.title}</h2>{result.prize && <><p>لقد ربحت:</p><strong>{result.prize}</strong></>}<small>{result.message}</small><b className="modal-balance">رصيدك الحالي: {result.total} نقطة</b><button className="btn primary" onClick={onClose}>تمام</button></div></div>; }
 
 function OfferCard({ offer }) { const whatsappUrl = `https://wa.me/${campaign.whatsappNumber}?text=${encodeURIComponent(offer.whatsappCTA || "السلام عليكم، أرغب في الاستفادة من عرض البطولة من كريم فارما.")}`; return <article className={`offer-card ${offer.id === 1 ? "featured-offer" : ""}`}><img className="offer-banner" src={offer.bannerImage} alt="" /><div><span>{offer.validUntil}</span><h4>{offer.title}</h4><p>{offer.description}</p><a href={whatsappUrl} target="_blank" rel="noreferrer" onClick={trackClicks(["offer_clicked", "offers", { offer_id: offer.id, title: offer.title }], ["whatsapp_clicked", "offer", { offer_id: offer.id }])}>اطلب العرض على واتساب</a></div></article>; }
 function Offers() { return <section className="page wrap"><SectionTitle eyebrow="خصيصًا للصيدليات" title="عروض كريم فارما" text="اختار العرض واطلبه مباشرة على واتساب." />{[...new Set(offers.map((offer) => offer.section))].map((section) => <div className="offers-section" key={section}><h3>{section}</h3><div className="offers-grid">{offers.filter((offer) => offer.section === section).map((offer) => <OfferCard offer={offer} key={offer.id} />)}</div></div>)}</section>; }
 
 function BranchMap() { const mapRef = useRef(null); const locations = branches.filter((branch) => branch.lat && branch.lng); useEffect(() => { if (!locations.length || !mapRef.current) return; let map; import("leaflet").then((L) => { map = L.map(mapRef.current).setView([locations[0].lat, locations[0].lng], 10); L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" }).addTo(map); locations.forEach((branch) => L.marker([branch.lat, branch.lng]).addTo(map).bindPopup(branch.name)); }); return () => map?.remove(); }, []); return locations.length ? <div className="branch-map" ref={mapRef} /> : <div className="branch-map-empty">تواصل معنا لمعرفة أقرب فرع كريم فارما.</div>; }
-function Branches() { return <section className="page wrap"><SectionTitle eyebrow="خدمة الصيدليات" title="فروع كريم فارما" text="فريقنا يساعدك في الوصول لأقرب فرع." /><BranchMap /><div className="branches-grid">{branches.map((branch) => <article className="branch-card" key={branch.id}><h3>{branch.name}</h3><p>{branch.address || "تواصل معنا لمعرفة تفاصيل الفرع."}</p>{branch.googleMapsUrl && <a href={branch.googleMapsUrl} target="_blank" rel="noreferrer">افتح على الخريطة</a>}</article>)}</div></section>; }
+function Branches() { return <section className="page wrap"><SectionTitle eyebrow="خدمة الصيدليات" title="فروع كريم فارما" text="تواصل مع فريقنا لمعرفة تفاصيل أقرب فرع." /><BranchMap /><div className="branches-grid">{branches.map((branch) => <article className="branch-card" key={branch.id}><h3>{branch.name}</h3><strong>{branch.governorate}</strong><p>{branch.address || "تواصل معنا لمعرفة تفاصيل الفرع."}</p>{branch.googleMapsUrl && <a href={branch.googleMapsUrl} target="_blank" rel="noreferrer">افتح على الخريطة</a>}</article>)}</div></section>; }
 
-function Rules() { return <section className="page wrap rules-layout"><div><SectionTitle eyebrow="ببساطة" title="قواعد المشاركة" /><div className="rules-card">{["التوقعات مفتوحة لأول ٣ أيام من البطولة ولكل مباريات منتخب مصر.", "توقع واحد لكل صيدلية ورقم واتساب لكل مباراة.", "يمكن تعديل التوقع قبل بداية المباراة.", "الفائزون يتم التواصل معهم عبر واتساب.", "الجوائز تخضع للتوافر وشروط الحملة."].map((rule, index) => <p key={rule}><b>{index + 1}</b>{rule}</p>)}</div></div><article className="prize-card"><img src={assetPaths.cheerBox} alt="بوكس التشجيع" /><h2>بوكس التشجيع من كريم فارما</h2><p>تيشيرت منتخب مصر + كاب تشجيع + هدايا ومفاجآت مجانية.</p></article></section>; }
+function Rules() { return <section className="page wrap"><SectionTitle eyebrow="دوري الصيدليات" title="جوائز الحملة ونظام النقاط" text="كل نشاط لصيدليتك يقربك من جائزة جديدة." /><EarnPoints /><div className="prize-zone-grid">{[["أفضل 5 صيدليات", "بوكس التشجيع أو بوكس كريم فارما بضاعة مجانية أو خصم خاص على المسحوبات."], ["سحب التطبيق", "كل صيدلية تحقق 10 طلبات من التطبيق تدخل السحب الكبير. عدد الفائزين قد يصل إلى 50 فائز."], ["مباريات مصر", "سحوبات خاصة على توقعات مباريات منتخب مصر."], ["المباريات الجماهيرية", "سحوبات ومفاجآت إضافية في المباريات الكبرى."]].map(([title, text]) => <article className="prize-card" key={title}><h2>{title}</h2><p>{text}</p></article>)}</div><div className="rules-card">{["توقع واحد لكل صيدلية ورقم واتساب لكل مباراة.", "يمكن تعديل التوقع قبل بداية المباراة بدون نقاط إضافية.", "لفة واحدة يوميًا لكل صيدلية.", "الجوائز تخضع للتوافر وشروط الحملة."].map((rule, index) => <p key={rule}><b>{index + 1}</b>{rule}</p>)}</div></section>; }
 
 function AdminDemo() {
+  const adminPassword = import.meta.env?.VITE_ADMIN_PASSWORD?.trim(); const [authorized, setAuthorized] = useState(false); const [password, setPassword] = useState("");
   const [predictions, setPredictions] = useState(getPredictions); const [spins, setSpins] = useState(getSpins); const [results, setResults] = useState(getMatchResults); const [resultForm, setResultForm] = useState({ id: "1", scoreA: "", scoreB: "", status: "finished" });
   const [tables, setTables] = useState(null); const [loadingTables, setLoadingTables] = useState(isSupabaseConfigured);
+  const [manual, setManual] = useState({ pharmacyId: "", points: "", reason: "", orderCount: "" });
   const downloadCsv = (rows, name, fields = Object.keys(rows[0] || {})) => { if (!rows.length) return; const csv = [fields, ...rows.map((row) => fields.map((field) => `"${String(row[field] ?? "").replaceAll('"', '""')}"`))].map((row) => row.join(",")).join("\n"); const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" })); link.download = name; link.click(); URL.revokeObjectURL(link.href); };
   const predictionFields = ["pharmacyName", "contactName", "whatsapp", "governorate", "customerCode", "isCurrentCustomer", "onlineOrderingInterest", "currentOrderingMethod", "wantsContact", "favoriteTeams", "matchId", "prediction", "createdAt", "updatedAt"];
-  const saveResult = (event) => { event.preventDefault(); saveMatchResult({ ...resultForm, scoreA: Number(resultForm.scoreA), scoreB: Number(resultForm.scoreB) }); setResults(getMatchResults()); };
+  const saveResult = async (event) => { event.preventDefault(); const result = { ...resultForm, scoreA: Number(resultForm.scoreA), scoreB: Number(resultForm.scoreB) }; saveMatchResult(result); await scoreMatchPredictions(result); setResults(getMatchResults()); reloadTables(); };
   const clear = () => { if (window.confirm("مسح كل البيانات التجريبية؟")) { clearDemoData(); setPredictions([]); setSpins([]); setResults([]); } };
-  useEffect(() => { if (!isSupabaseConfigured) return; loadAdminTables().then(setTables).catch((error) => console.error("[Admin tables]", error)).finally(() => setLoadingTables(false)); }, []);
-  const tableNames = ["pharmacies", "predictions", "wheel_spins", "leads_events"];
+  const reloadTables = () => loadAdminTables().then(setTables).catch((error) => console.error("[Admin tables]", error)).finally(() => setLoadingTables(false));
+  useEffect(() => { if (isSupabaseConfigured && authorized) reloadTables(); }, [authorized]);
+  const tableNames = ["pharmacies", "predictions", "wheel_spins", "leads_events", "points_ledger", "app_orders_progress", "draw_entries"];
+  const saveManualPoints = async (event) => { event.preventDefault(); await addManualPoints(manual.pharmacyId, manual.points, manual.reason); setManual({ ...manual, points: "", reason: "" }); reloadTables(); };
+  const saveOrders = async (event) => { event.preventDefault(); await updateAppOrdersProgress(manual.pharmacyId, manual.orderCount); setManual({ ...manual, orderCount: "" }); reloadTables(); };
+  const qualifyGrandDraw = async () => { if (!manual.pharmacyId) return; await markGrandDrawQualified(manual.pharmacyId); reloadTables(); };
+  if (!adminPassword) return <section className="page narrow wrap admin-page"><SectionTitle eyebrow="لوحة محمية" title="إدارة الحملة غير متاحة" text="أضف كلمة مرور الإدارة في إعدادات النشر أولًا." /></section>;
+  if (!authorized) return <section className="page narrow wrap admin-page"><SectionTitle eyebrow="لوحة محمية" title="دخول إدارة الحملة" /><form className="admin-login" onSubmit={(event) => { event.preventDefault(); if (password === adminPassword) setAuthorized(true); }}><input required type="password" placeholder="كلمة المرور" value={password} onChange={(event) => setPassword(event.target.value)} /><button className="btn primary">دخول</button></form></section>;
   return <section className="page wrap admin-page">
     <div className="admin-note">{isSupabaseConfigured ? "Supabase متصل بالإعدادات الحالية" : "وضع محلي احتياطي - متغيرات Supabase غير متاحة"}</div>
     <SectionTitle eyebrow="لوحة المتابعة" title="بيانات الحملة" text={loadingTables ? "جاري تحميل بيانات Supabase..." : "متابعة التسجيلات والتوقعات ولفات العجلة."} />
     {isSupabaseConfigured && <><div className="admin-stats">{tableNames.map((name) => <article key={name}><b>{tables?.[name]?.length ?? 0}</b><span>{name}</span></article>)}</div><div className="admin-actions">{tableNames.map((name) => <button key={name} onClick={() => downloadCsv(tables?.[name] || [], `${name}.csv`)}>تصدير {name} CSV</button>)}</div><div className="admin-table-grid">{tableNames.map((name) => <article key={name}><h3>{name}</h3><pre>{JSON.stringify((tables?.[name] || []).slice(0, 10), null, 2)}</pre></article>)}</div></>}
     {!isSupabaseConfigured && <><div className="admin-stats"><article><b>{predictions.length}</b><span>توقعات محلية</span></article><article><b>{spins.length}</b><span>لفات محلية</span></article><article><b>{results.length}</b><span>نتائج محلية</span></article></div><div className="admin-actions"><button onClick={() => downloadCsv(predictions, "predictions-local.csv", predictionFields)}>تصدير التوقعات المحلية CSV</button><button onClick={() => downloadCsv(spins, "wheel-spins-local.csv")}>تصدير اللفات المحلية CSV</button><button className="danger" onClick={clear}>مسح البيانات المحلية</button></div></>}
+    {isSupabaseConfigured && <div className="admin-manual-grid"><form onSubmit={saveManualPoints}><h3>إضافة نقاط يدوية</h3><select required value={manual.pharmacyId} onChange={(event) => setManual({ ...manual, pharmacyId: event.target.value })}><option value="">اختار الصيدلية</option>{(tables?.pharmacies || []).map((row) => <option key={row.id} value={row.id}>{row.pharmacy_name}</option>)}</select><input required type="number" value={manual.points} onChange={(event) => setManual({ ...manual, points: event.target.value })} placeholder="عدد النقاط" /><input required value={manual.reason} onChange={(event) => setManual({ ...manual, reason: event.target.value })} placeholder="السبب" /><button>إضافة النقاط</button></form><form onSubmit={saveOrders}><h3>تحديث طلبات التطبيق</h3><select required value={manual.pharmacyId} onChange={(event) => setManual({ ...manual, pharmacyId: event.target.value })}><option value="">اختار الصيدلية</option>{(tables?.pharmacies || []).map((row) => <option key={row.id} value={row.id}>{row.pharmacy_name}</option>)}</select><input required type="number" min="0" value={manual.orderCount} onChange={(event) => setManual({ ...manual, orderCount: event.target.value })} placeholder="عدد الطلبات" /><button>حفظ عدد الطلبات</button><button type="button" onClick={qualifyGrandDraw}>تأهيل لسحب 10 طلبات</button></form></div>}
     <form className="admin-result-form" onSubmit={saveResult}><h3>تحديث نتيجة محلية</h3><select value={resultForm.id} onChange={(e) => setResultForm({ ...resultForm, id: e.target.value })}>{matchesData.map((match) => <option key={match.id} value={match.id}>#{match.id} {match.teamA} - {match.teamB}</option>)}</select><input required type="number" min="0" value={resultForm.scoreA} onChange={(e) => setResultForm({ ...resultForm, scoreA: e.target.value })} placeholder="نتيجة الفريق الأول" /><input required type="number" min="0" value={resultForm.scoreB} onChange={(e) => setResultForm({ ...resultForm, scoreB: e.target.value })} placeholder="نتيجة الفريق الثاني" /><button>حفظ النتيجة</button></form>
   </section>;
 }

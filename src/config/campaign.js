@@ -1,5 +1,5 @@
 export const campaign = {
-  campaignName: "منصة التشجيع المصرية من كريم فارما",
+  campaignName: "دوري الصيدليات مع كريم فارما",
   brandName: "كريم فارما",
   prizeName: "بوكس التشجيع من كريم فارما",
   whatsappNumber: "201145000445",

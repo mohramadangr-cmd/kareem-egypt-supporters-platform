@@ -1,13 +1,18 @@
 [
   {
-    "id": "coming-soon",
-    "name": "فروع كريم فارما",
-    "governorate": "",
+    "id": "head-office",
+    "name": "الإدارة العامة",
+    "governorate": "الدقي",
     "address": "",
     "phone": "",
     "googleMapsUrl": "",
     "lat": null,
     "lng": null,
     "workingHours": ""
-  }
+  },
+  { "id": "kerdasa", "name": "كرداسة", "governorate": "الجيزة", "address": "", "phone": "", "googleMapsUrl": "", "lat": null, "lng": null, "workingHours": "" },
+  { "id": "ain-shams", "name": "عين شمس", "governorate": "القاهرة", "address": "", "phone": "", "googleMapsUrl": "", "lat": null, "lng": null, "workingHours": "" },
+  { "id": "downtown", "name": "وسط البلد", "governorate": "السيدة زينب", "address": "", "phone": "", "googleMapsUrl": "", "lat": null, "lng": null, "workingHours": "" },
+  { "id": "alexandria", "name": "الإسكندرية", "governorate": "الإسكندرية", "address": "", "phone": "", "googleMapsUrl": "", "lat": null, "lng": null, "workingHours": "" },
+  { "id": "suez", "name": "السويس", "governorate": "السويس", "address": "", "phone": "", "googleMapsUrl": "", "lat": null, "lng": null, "workingHours": "" }
 ]
