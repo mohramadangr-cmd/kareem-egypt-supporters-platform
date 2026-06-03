@@ -4,6 +4,7 @@ import matchesData from "./data/fixtures.json";
 import offers from "./data/offers.json";
 import branches from "./data/branches.json";
 import { campaign } from "./config/campaign";
+import PreviewV2 from "./ui-rebuild-v2/PreviewV2";
 import "leaflet/dist/leaflet.css";
 import {
   clearDemoData,
@@ -76,6 +77,13 @@ const trackClick = (eventType, source) => () => void trackLeadEvent(eventType, {
 const trackClicks = (...events) => () => events.forEach(([eventType, source, data = {}]) => void trackLeadEvent(eventType, { source, ...data }));
 
 function App() {
+  return <Routes>
+    <Route path="/preview-v2" element={<PreviewV2 />} />
+    <Route path="*" element={<ProductionApp />} />
+  </Routes>;
+}
+
+function ProductionApp() {
   return <div className="app-shell">
     <div className="campaign-lights" />
     <AnnouncementBar />
