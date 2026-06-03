@@ -1,5 +1,5 @@
 import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
-import { getAppOrdersProgress, getPointsLedger, getPredictions, getProfile, saveAppOrdersProgress, savePointsEntry } from "./storage.js";
+import { getAppOrdersProgress, getDrawEntries, getPointsLedger, getPredictions, getProfile, saveAppOrdersProgress, saveDrawEntry, savePointsEntry } from "./storage.js";
 
 const logError = (scope, error) => console.error(`[Points:${scope}]`, error);
 const localId = (pharmacyId) => pharmacyId || "local-pharmacy";
@@ -60,7 +60,7 @@ const award = async (pharmacyId, activityType, points, sourceId, notes = "") => 
 
 export const awardRegistrationBonus = (pharmacyId) => award(pharmacyId, "registration_bonus", 100, "registration", "Registration bonus");
 export const awardPredictionSubmitPoints = (pharmacyId, matchId) => award(pharmacyId, "prediction_submit", 10, `match:${matchId}`, "Prediction submitted");
-export const awardWheelParticipationPoints = (pharmacyId, spinId) => award(pharmacyId, "wheel_participation", 5, `spin:${spinId}`, "Daily wheel participation");
+export const awardWheelParticipationPoints = (pharmacyId, spinId) => award(pharmacyId, "wheel_daily_participation", 5, `spin:${spinId}`, "Daily wheel participation");
 export const awardContactRequestPoints = (pharmacyId) => award(pharmacyId, "contact_request", 25, "contact-request", "Requested Kareem Pharma contact");
 export const awardAppInterestPoints = (pharmacyId) => award(pharmacyId, "app_interest", 100, "app-interest", "Clicked Kareem Pharma app CTA");
 export const awardPredictionResultPoints = async (pharmacyId, prediction, result) => {
@@ -137,6 +137,14 @@ export const getLeaderboard = async () => {
 };
 
 export const addGrandDrawEntry = async (pharmacyId, source = "manual_admin") => {
+  const localDuplicate = getDrawEntries().some((entry) => entry.pharmacyId === pharmacyId && entry.drawType === "app_10_orders_draw");
+  if (!localDuplicate) saveDrawEntry({
+    id: `local:draw:${Date.now()}`,
+    pharmacyId,
+    drawType: "app_10_orders_draw",
+    source,
+    createdAt: new Date().toISOString()
+  });
   if (isSupabaseConfigured) {
     const { data: existing, error: lookupError } = await supabase
       .from("draw_entries")

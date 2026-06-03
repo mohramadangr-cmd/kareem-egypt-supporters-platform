@@ -4,7 +4,9 @@ const KEYS = {
   matchResults: "kareem_match_results",
   profile: "kareem_pharmacy_profile",
   pointsLedger: "kareem_points_ledger",
-  appOrders: "kareem_app_orders_progress"
+  appOrders: "kareem_app_orders_progress",
+  leadEvents: "kareem_lead_events",
+  drawEntries: "kareem_draw_entries"
 };
 
 const read = (key) => JSON.parse(localStorage.getItem(key) || "[]");
@@ -33,6 +35,10 @@ export const saveAppOrdersProgress = (progress) => {
   else rows.push(progress);
   write(KEYS.appOrders, rows);
 };
+export const getLeadEvents = () => read(KEYS.leadEvents);
+export const saveLeadEvent = (event) => write(KEYS.leadEvents, [...getLeadEvents(), event]);
+export const getDrawEntries = () => read(KEYS.drawEntries);
+export const saveDrawEntry = (entry) => write(KEYS.drawEntries, [...getDrawEntries(), entry]);
 export const saveMatchResult = (result) => {
   const rows = getMatchResults();
   const index = rows.findIndex((row) => row.id === result.id);

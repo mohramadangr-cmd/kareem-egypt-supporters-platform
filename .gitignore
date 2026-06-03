@@ -2,3 +2,7 @@ node_modules/
 dist/
 .vite/
 *.local
+.tmp-edge*/
+qa-screenshots/
+scripts/campaign_*_audit*.mjs
+scripts/campaign_audit_*.mjs

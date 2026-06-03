@@ -25,8 +25,12 @@ create table if not exists public.draw_entries (
   pharmacy_id uuid not null references public.pharmacies(id) on delete cascade,
   draw_type text not null,
   source text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  unique (pharmacy_id, draw_type, source)
 );
+
+create unique index if not exists draw_entries_unique_source
+  on public.draw_entries (pharmacy_id, draw_type, coalesce(source, ''));
 
 -- Required for the browser client. Keep admin access behind authenticated tooling.
 alter table public.points_ledger enable row level security;

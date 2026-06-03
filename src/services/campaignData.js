@@ -3,6 +3,7 @@ import {
   getPredictions,
   getProfile,
   getSpins,
+  saveLeadEvent,
   savePrediction,
   saveProfile,
   saveSpin
@@ -45,13 +46,22 @@ const toPharmacyRow = (profile) => ({
 });
 
 export const trackLeadEvent = async (eventType, eventData = {}, pharmacyId = null) => {
-  if (!isSupabaseConfigured) return;
+  const localEvent = {
+    id: `local:${eventType}:${Date.now()}:${Math.random().toString(16).slice(2)}`,
+    pharmacyId,
+    eventType,
+    eventData,
+    createdAt: new Date().toISOString()
+  };
+  saveLeadEvent(localEvent);
+  if (!isSupabaseConfigured) return localEvent;
   const { error } = await supabase.from("leads_events").insert({
     pharmacy_id: pharmacyId,
     event_type: eventType,
     event_data: eventData
   });
   if (error) logError(`leads_events:${eventType}`, error);
+  return localEvent;
 };
 
 export const upsertPharmacy = async (profile, { track = true } = {}) => {
