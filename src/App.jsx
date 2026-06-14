@@ -4,6 +4,7 @@ import matchesData from "./data/fixtures.json";
 import offers from "./data/offers.json";
 import branches from "./data/branches.json";
 import { campaign } from "./config/campaign";
+import LoyaltyPreviewApp from "./loyaltyPreview/LoyaltyPreviewApp";
 import "leaflet/dist/leaflet.css";
 import {
   clearDemoData,
@@ -76,6 +77,13 @@ const trackClick = (eventType, source) => () => void trackLeadEvent(eventType, {
 const trackClicks = (...events) => () => events.forEach(([eventType, source, data = {}]) => void trackLeadEvent(eventType, { source, ...data }));
 
 function App() {
+  return <Routes>
+    <Route path="/preview-loyalty/*" element={<LoyaltyPreviewApp />} />
+    <Route path="*" element={<ProductionApp />} />
+  </Routes>;
+}
+
+function ProductionApp() {
   return <div className="app-shell">
     <div className="campaign-lights" />
     <AnnouncementBar />
