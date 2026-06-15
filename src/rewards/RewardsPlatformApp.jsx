@@ -27,46 +27,45 @@ import {
 } from "./rewardsData";
 
 const NAV_ITEMS = [
-  { to: "/", label: "الرئيسية" },
+  { to: "/", label: "الرئيسية", icon: "home" },
+  { to: "/offers", label: "العروض", icon: "offers" },
+  { to: "/my-points", label: "نقاطي", icon: "points", featured: true },
+  { to: "/register", label: "التسجيل", icon: "register" },
+  { to: "/more", label: "المزيد", icon: "more" }
+];
+
+const HEADER_LINKS = [
   { to: "/offers", label: "العروض" },
   { to: "/my-points", label: "نقاطي" },
   { to: "/register", label: "التسجيل" },
-  { to: "/how-it-works", label: "كيف يعمل" },
-  { to: "/about", label: "عن كريم فارما" },
   { to: "/contact", label: "التواصل" }
 ];
 
-const MOBILE_NAV_ITEMS = [
-  { to: "/", label: "الرئيسية", icon: "H" },
-  { to: "/offers", label: "العروض", icon: "%" },
-  { to: "/my-points", label: "نقاطي", icon: "P", featured: true },
-  { to: "/register", label: "التسجيل", icon: "+" },
-  { to: "/more", label: "المزيد", icon: "M" }
-];
-
-const VALUE_CARDS = [
+const HOME_FEATURES = [
   { title: "نقاط ترحيبية", text: "رصيد افتتاحي بعد التسجيل والتفعيل." },
-  { title: "نقاط على الطلبات", text: "كل طلب مؤهل يضاف إلى رصيد الصيدلية." },
-  { title: "عروض حصرية", text: "مزايا مرتبطة بالتعاملات والعروض النشطة." },
-  { title: "تفعيل المنصة الرقمية", text: "بوابة أساسية للطلبات والمتابعة." }
+  { title: "نقاط على الطلبات", text: "كل طلب مؤهل يضيف إلى رصيد الصيدلية." },
+  { title: "عروض حصرية", text: "مزايا مرتبطة بالعروض النشطة." },
+  { title: "تفعيل المنصة", text: "بوابة أساسية للطلب والمتابعة." }
 ];
 
 const START_STEPS = [
-  "سجل صيدليتك",
-  "فعّل حسابك على منصة كريم فارما الرقمية",
-  "اطلب أونلاين واجمع نقاط"
+  { step: "1", title: "سجل", text: "بيانات الصيدلية والمسؤول." },
+  { step: "2", title: "فعّل الحساب", text: "استلم بيانات المنصة الرقمية." },
+  { step: "3", title: "اطلب واجمع نقاط", text: "تابع الرصيد مع كل تعامل مؤهل." }
 ];
 
-const DIGITAL_BENEFITS = [
-  "طلب أسهل وأسرع",
-  "عروض متجددة",
-  "متابعة التعاملات",
-  "دعم من فريق كريم فارما"
-];
+const OFFER_TYPES = {
+  registration: "عرض تسجيل",
+  first_order: "أول طلب",
+  points_multiplier: "نقاط مضاعفة",
+  discount: "خصم",
+  free_goods: "بضاعة مجانية",
+  reward_balance: "رصيد مكافآت"
+};
 
 const POINT_TYPE_LABELS = {
   welcome: "نقاط ترحيبية",
-  online_orders: "نقاط الطلبات الأونلاين",
+  online_orders: "نقاط الطلبات",
   offers: "نقاط العروض",
   campaigns: "نقاط الحملات",
   admin: "نقاط إدارية",
@@ -94,92 +93,91 @@ const DEFAULT_OFFER_FORM = {
 };
 
 function usePrefersReducedMotion() {
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => setPrefersReducedMotion(media.matches);
+    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduced(query.matches);
     sync();
-    media.addEventListener?.("change", sync);
-    return () => media.removeEventListener?.("change", sync);
+    query.addEventListener?.("change", sync);
+    return () => query.removeEventListener?.("change", sync);
   }, []);
 
-  return prefersReducedMotion;
+  return reduced;
 }
 
 function useCountUp(value) {
-  const prefersReducedMotion = usePrefersReducedMotion();
-  const [displayValue, setDisplayValue] = useState(() => Number(value) || 0);
-  const previousValueRef = useRef(Number(value) || 0);
+  const reduced = usePrefersReducedMotion();
+  const [display, setDisplay] = useState(() => Number(value) || 0);
+  const previous = useRef(Number(value) || 0);
 
   useEffect(() => {
     const target = Number(value) || 0;
-    if (prefersReducedMotion) {
-      setDisplayValue(target);
-      previousValueRef.current = target;
+    if (reduced) {
+      setDisplay(target);
+      previous.current = target;
       return undefined;
     }
-    let frameId = 0;
-    let startTime = 0;
-    const duration = 700;
-    const initial = previousValueRef.current;
+
+    let frame = 0;
+    let startedAt = 0;
+    const from = previous.current;
 
     const tick = (time) => {
-      if (!startTime) startTime = time;
-      const progress = Math.min((time - startTime) / duration, 1);
+      if (!startedAt) startedAt = time;
+      const progress = Math.min((time - startedAt) / 700, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayValue(Math.round(initial + (target - initial) * eased));
-      if (progress < 1) {
-        frameId = window.requestAnimationFrame(tick);
-      } else {
-        previousValueRef.current = target;
-      }
+      const next = Math.round(from + (target - from) * eased);
+      setDisplay(next);
+      if (progress < 1) frame = window.requestAnimationFrame(tick);
+      else previous.current = target;
     };
 
-    frameId = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frameId);
-  }, [prefersReducedMotion, value]);
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [reduced, value]);
 
-  return displayValue;
+  return display;
 }
 
 function AnimatedNumber({ value }) {
-  const count = useCountUp(value);
-  return <>{count.toLocaleString("en-US")}</>;
+  const display = useCountUp(value);
+  return <>{display.toLocaleString("en-US")}</>;
 }
 
 function RewardsPlatformApp() {
   const [levels, setLevels] = useState(DEFAULT_LEVELS);
   const [offers, setOffers] = useState([]);
   const [selectedPharmacy, setSelectedPharmacy] = useState(readSelectedPharmacy());
-  const [pharmacyLedger, setPharmacyLedger] = useState([]);
-  const [pharmacyRedemptions, setPharmacyRedemptions] = useState([]);
-  const [homeStatus, setHomeStatus] = useState({ loading: true, offersError: "", pointsError: "" });
+  const [ledger, setLedger] = useState([]);
+  const [redemptions, setRedemptions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [offersError, setOffersError] = useState("");
 
   useEffect(() => {
     let active = true;
     const loadPublicData = async () => {
-      const [levelsData, offersData, storedPharmacy] = await Promise.all([
-        fetchLoyaltyLevels(),
-        fetchActiveOffers(),
-        hydrateSelectedPharmacy()
-      ]);
-      if (!active) return;
-      setLevels(levelsData);
-      setOffers(offersData);
-      setSelectedPharmacy(storedPharmacy || null);
-      setHomeStatus({ loading: false, offersError: "", pointsError: "" });
+      try {
+        const [levelsData, offersData, storedPharmacy] = await Promise.all([
+          fetchLoyaltyLevels(),
+          fetchActiveOffers(),
+          hydrateSelectedPharmacy()
+        ]);
+        if (!active) return;
+        setLevels(levelsData);
+        setOffers(offersData);
+        setSelectedPharmacy(storedPharmacy || null);
+        setOffersError("");
+      } catch (error) {
+        console.error("[Rewards:public-load]", error);
+        if (!active) return;
+        setOffersError("تعذر تحميل العروض حالياً.");
+      } finally {
+        if (active) setLoading(false);
+      }
     };
-    loadPublicData().catch((error) => {
-      console.error("[Rewards:public-load]", error);
-      if (!active) return;
-      setHomeStatus({
-        loading: false,
-        offersError: "تعذر تحميل العروض حالياً.",
-        pointsError: "تعذر تحميل بيانات النقاط."
-      });
-    });
+    loadPublicData();
     return () => {
       active = false;
     };
@@ -187,210 +185,452 @@ function RewardsPlatformApp() {
 
   useEffect(() => {
     let active = true;
-    const loadSelectedPharmacyData = async () => {
+    const loadPharmacyData = async () => {
       if (!selectedPharmacy?.customerCode) {
-        setPharmacyLedger([]);
-        setPharmacyRedemptions([]);
+        setLedger([]);
+        setRedemptions([]);
         return;
       }
-      const [ledgerRows, redemptionRows] = await Promise.all([
-        fetchLedgerForPharmacy({ pharmacyId: selectedPharmacy.id, customerCode: selectedPharmacy.customerCode }),
-        fetchRedemptionsForPharmacy({ pharmacyId: selectedPharmacy.id, customerCode: selectedPharmacy.customerCode })
-      ]);
-      if (!active) return;
-      setPharmacyLedger(ledgerRows);
-      setPharmacyRedemptions(redemptionRows);
+      try {
+        const [ledgerRows, redemptionRows] = await Promise.all([
+          fetchLedgerForPharmacy({ pharmacyId: selectedPharmacy.id, customerCode: selectedPharmacy.customerCode }),
+          fetchRedemptionsForPharmacy({ pharmacyId: selectedPharmacy.id, customerCode: selectedPharmacy.customerCode })
+        ]);
+        if (!active) return;
+        setLedger(ledgerRows);
+        setRedemptions(redemptionRows);
+      } catch (error) {
+        console.error("[Rewards:pharmacy-load]", error);
+        if (!active) return;
+        setLedger([]);
+        setRedemptions([]);
+      }
     };
-    loadSelectedPharmacyData().catch((error) => {
-      console.error("[Rewards:lookup-data]", error);
-      if (!active) return;
-      setPharmacyLedger([]);
-      setPharmacyRedemptions([]);
-    });
+    loadPharmacyData();
     return () => {
       active = false;
     };
   }, [selectedPharmacy]);
 
-  const pointsSummary = useMemo(
-    () => summarizeLedger(pharmacyLedger, levels),
-    [levels, pharmacyLedger]
-  );
+  const summary = useMemo(() => summarizeLedger(ledger, levels), [ledger, levels]);
 
   const context = {
-    levels,
+    loading,
     offers,
+    offersError,
     selectedPharmacy,
     setSelectedPharmacy,
-    pharmacyLedger,
-    pharmacyRedemptions,
-    pointsSummary,
-    homeStatus,
-    reloadOffers: async () => setOffers(await fetchActiveOffers()),
-    reloadSelectedPharmacy: async (pharmacy) => {
-      const nextPharmacy = pharmacy || (await hydrateSelectedPharmacy());
-      setSelectedPharmacy(nextPharmacy || null);
-    }
+    levels,
+    ledger,
+    redemptions,
+    summary,
+    reloadOffers: async () => setOffers(await fetchActiveOffers())
   };
 
   return (
-    <div className="rewards-shell">
-      <div className="rewards-backdrop" />
-      <Header hasPoints={pointsSummary.availablePoints > 0} />
-      <main className="rewards-main">
+    <div className="rewards-app-shell">
+      <div className="app-noise" />
+      <TopHeader selectedPharmacy={selectedPharmacy} />
+      <main className="app-main-shell">
         <Routes>
           <Route index element={<HomePage context={context} />} />
-          <Route path="/register" element={<RegisterPage />} />
           <Route path="/my-points" element={<MyPointsPage context={context} />} />
-          <Route path="/offers" element={<OffersPage offers={offers} loading={homeStatus.loading} error={homeStatus.offersError} />} />
+          <Route path="/offers" element={<OffersPage context={context} />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/how-it-works" element={<HowItWorksPage levels={levels} />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
-          <Route path="/more" element={<MorePage hasPoints={pointsSummary.availablePoints > 0} />} />
+          <Route path="/more" element={<MorePage />} />
           <Route path="/admin" element={<AdminPage levels={levels} onReloadOffers={context.reloadOffers} />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
-      <Footer />
-      <MobileNav points={pointsSummary.availablePoints} />
+      <MobileBottomNav selectedPharmacy={selectedPharmacy} points={summary.availablePoints} />
     </div>
   );
 }
 
-function Header() {
+function TopHeader({ selectedPharmacy }) {
   return (
-    <header className="rewards-header reveal">
-      <Link className="rewards-brand" to="/">
-        <img src="/assets/kareem-logo.png" alt="Kareem Pharma" />
-        <div>
+    <header className="topbar reveal">
+      <div className="brand-cluster">
+        <Link className="brand-mark" to="/">
+          <img src="/assets/kareem-logo.png" alt="Kareem Pharma" />
+        </Link>
+        <div className="brand-copy">
           <strong>برنامج كريم فارما للمكافآت</strong>
-          <span>منصة رسمية للصيدليات</span>
+          <span>{selectedPharmacy ? pharmacyGreeting(selectedPharmacy) : "منصة رسمية للصيدليات"}</span>
         </div>
-      </Link>
+      </div>
 
-      <nav className="rewards-desktop-nav" aria-label="التنقل الرئيسي">
-        {NAV_ITEMS.map((item) => (
+      <nav className="header-links" aria-label="التنقل الرئيسي">
+        {HEADER_LINKS.map((item) => (
           <NavLink key={item.to} to={item.to} end={item.to === "/"}>
             {item.label}
           </NavLink>
         ))}
       </nav>
 
-      <a className="header-contact-btn" href={getWhatsappUrl()} target="_blank" rel="noreferrer">
-        تواصل معنا
+      <a className="contact-chip" href={getWhatsappUrl()} target="_blank" rel="noreferrer">
+        واتساب
       </a>
     </header>
   );
 }
 
 function HomePage({ context }) {
-  const pointsPreviewTitle = context.selectedPharmacy
-    ? `صيدلية ${context.selectedPharmacy.pharmacyName}`
-    : "تابع رصيدك بعد الربط";
+  const greeting = context.selectedPharmacy ? pharmacyGreeting(context.selectedPharmacy) : "";
+  const offersPreview = context.offers.slice(0, 3);
 
   return (
-    <div className="page-stack">
-      <section className="hero-grid reveal">
-        <article className="hero-card">
-          <span className="eyebrow">برنامج كريم فارما للمكافآت</span>
-          <h1>اطلب أونلاين من كريم فارما، اجمع نقاط، واستفد من مزايا حصرية لصيدليتك</h1>
-          <p>كل تعامل رقمي مع كريم فارما يمكن أن يتحول إلى نقاط ومزايا قابلة للمتابعة من خلال برنامج المكافآت.</p>
-          <div className="hero-actions">
-            <Link className="btn btn-primary cta-shimmer" to="/register">
-              سجل صيدليتك
-            </Link>
-            <Link className="btn btn-secondary" to="/my-points">
-              نقاطي
-            </Link>
-            <Link className="btn btn-tertiary" to="/offers">
-              العروض
-            </Link>
-          </div>
-        </article>
+    <div className="screen-stack">
+      <ScreenSection className="hero-surface reveal">
+        <div className="hero-headline">
+          {greeting && <PillBadge tone="soft">{greeting}</PillBadge>}
+          <h1>برنامج كريم فارما للمكافآت</h1>
+          <h2>اطلب أونلاين، اجمع نقاط، واستفد من مزايا حصرية لصيدليتك</h2>
+          <p>كل تعامل رقمي مع كريم فارما يمكن أن يتحول إلى نقاط ومزايا قابلة للمتابعة.</p>
+        </div>
 
-        <article className="points-preview-card">
-          <span className="eyebrow">معاينة نقاطي</span>
-          <strong className="points-number">
-            <AnimatedNumber value={context.pointsSummary.availablePoints} />
-          </strong>
-          <p>{pointsPreviewTitle}</p>
-          <div className="mini-stats">
-            <div>
-              <span>المستوى</span>
-              <strong>{context.pointsSummary.currentLevel.levelName}</strong>
-            </div>
-            <div>
-              <span>آخر حركة</span>
-              <strong>{context.pointsSummary.lastMovement?.description || "لا توجد حركة بعد"}</strong>
-            </div>
-          </div>
-          <Link className="inline-cta" to="/my-points">
-            اعرف رصيد نقاطك
-          </Link>
-        </article>
-      </section>
+        <div className="hero-cta-row">
+          <PrimaryButton as={Link} to="/register">
+            سجل الآن
+          </PrimaryButton>
+          <SecondaryButton as={Link} to="/my-points">
+            نقاطي
+          </SecondaryButton>
+          <GhostButton as={Link} to="/offers">
+            العروض
+          </GhostButton>
+        </div>
+      </ScreenSection>
 
-      <section className="section-card reveal">
-        <SectionHeading title="مزايا سريعة" subtitle="أربع نقاط أساسية" />
-        <div className="compact-grid columns-4">
-          {VALUE_CARDS.map((card) => (
-            <article key={card.title} className="compact-tile">
-              <strong>{card.title}</strong>
-              <p>{card.text}</p>
-            </article>
+      <ScreenSection className="reveal">
+        <SectionHeader
+          eyebrow="نظرة سريعة"
+          title="مزايا أساسية"
+          note="بطاقات قصيرة وواضحة"
+        />
+        <div className="overview-grid">
+          {HOME_FEATURES.map((item) => (
+            <SummaryCard key={item.title} title={item.title} text={item.text} />
           ))}
         </div>
-      </section>
+      </ScreenSection>
 
-      <section className="section-card reveal">
-        <SectionHeading title="ابدأ في 3 خطوات" subtitle="مسار واضح" />
-        <div className="compact-grid columns-3">
-          {START_STEPS.map((step, index) => (
-            <article key={step} className="step-tile">
-              <b>{index + 1}</b>
-              <strong>{step}</strong>
-            </article>
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="ابدأ الآن" title="3 خطوات فقط" note="مسار بسيط للانطلاق" />
+        <div className="steps-grid">
+          {START_STEPS.map((item) => (
+            <StepCard key={item.step} {...item} />
           ))}
         </div>
-      </section>
+      </ScreenSection>
 
-      <section className="section-card reveal">
-        <SectionHeading title="العروض الحالية" subtitle="من Supabase" />
-        <OffersPreview offers={context.offers} loading={context.homeStatus.loading} error={context.homeStatus.offersError} limit={3} />
-      </section>
-
-      <section className="section-card reveal">
-        <SectionHeading title="منصة كريم فارما الرقمية للطلبات" subtitle="للصيدليات فقط" />
-        <div className="platform-grid">
-          <div className="platform-copy">
-            <p>منصة رقمية تساعد الصيدليات على إرسال الطلبات بسهولة، متابعة العروض، وتقليل الاعتماد على طرق الطلب التقليدية.</p>
-            <ul className="benefits-list">
-              {DIGITAL_BENEFITS.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-            <Link className="btn btn-primary cta-shimmer" to="/register">
-              اطلب تفعيل حسابك
-            </Link>
-          </div>
-          <div className="platform-panel">
-            <span>التعامل الرقمي</span>
-            <strong>طلبات + عروض + نقاط</strong>
-            <p>واجهة موحدة لمتابعة الرصيد والعروض والطلبات المؤهلة للمكافآت.</p>
+      <ScreenSection className="points-preview-band reveal">
+        <SectionHeader eyebrow="نقاطي" title="معاينة سريعة" note="رصيدك وموقعك الحالي" />
+        <div className="points-preview-panel">
+          <BalanceCard
+            compact
+            title={greeting || "رصيد النقاط"}
+            balance={context.summary.availablePoints}
+            level={context.summary.currentLevel.levelName}
+            progressText={
+              context.summary.nextLevelGap
+                ? `${context.summary.nextLevelGap} نقطة للوصول إلى المستوى التالي`
+                : "أنت في أعلى مستوى متاح"
+            }
+          />
+          <div className="points-preview-side">
+            <MiniState label="آخر حركة" value={context.summary.lastMovement?.description || "لا توجد حركة بعد"} />
+            <MiniState label="الرصيد الشهري" value={<AnimatedNumber value={context.summary.monthlyPoints} />} />
+            <PrimaryButton as={Link} to="/my-points">
+              اعرف رصيد نقاطك
+            </PrimaryButton>
           </div>
         </div>
-      </section>
+      </ScreenSection>
 
-      <section className="section-card reveal">
-        <SectionHeading title="من هي كريم فارما؟" subtitle="ثقة مختصرة" />
-        <div className="compact-grid columns-4">
-          <TrustTile title="تأسست عام 2005" />
-          <TrustTile title="شهادة GSDP" />
-          <TrustTile title="توزيع دوائي احترافي" />
-          <TrustTile title="منصة رقمية للصيدليات" />
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="العروض" title="عروض نشطة" note="من Supabase مباشرة" />
+        {context.loading ? (
+          <EmptyState title="جاري تحميل العروض" body="نقوم الآن بجلب أحدث العروض النشطة." />
+        ) : context.offersError ? (
+          <EmptyState title="تعذر تحميل العروض" body={context.offersError} />
+        ) : offersPreview.length ? (
+          <div className="offers-showcase-grid">
+            {offersPreview.map((offer) => (
+              <OfferCard key={offer.id} offer={offer} greeting={greeting} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="لا توجد عروض نشطة حالياً." body="تابع الصفحة لمعرفة أحدث عروض كريم فارما." />
+        )}
+      </ScreenSection>
+
+      <ScreenSection className="trust-strip reveal">
+        <div className="trust-strip-copy">
+          <SectionHeader eyebrow="ثقة" title="كريم فارما" note="شركة توزيع دوائي مصرية تخدم الصيدليات منذ 2005" />
         </div>
-      </section>
+        <div className="trust-badges">
+          <PillBadge>تأسست عام 2005</PillBadge>
+          <PillBadge>شهادة GSDP</PillBadge>
+          <PillBadge>توزيع دوائي احترافي</PillBadge>
+          <PillBadge>منصة رقمية للصيدليات</PillBadge>
+        </div>
+      </ScreenSection>
     </div>
+  );
+}
+
+function MyPointsPage({ context }) {
+  const [lookup, setLookup] = useState({
+    customerCode: context.selectedPharmacy?.customerCode || "",
+    whatsapp: context.selectedPharmacy?.whatsapp || ""
+  });
+  const [lookupError, setLookupError] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [tab, setTab] = useState("summary");
+  const selected = context.selectedPharmacy;
+
+  const statCards = [
+    { label: "نقاط هذا الشهر", value: context.summary.monthlyPoints },
+    { label: "نقاط العروض", value: context.summary.categories.offers },
+    { label: "نقاط الطلبات", value: context.summary.categories.onlineOrders },
+    { label: "نقاط مستبدلة", value: context.summary.categories.redemption }
+  ];
+
+  const rewardItems = [
+    { title: "مستوى الصيدلية", text: context.summary.currentLevel.levelName },
+    {
+      title: "التقدم",
+      text: context.summary.nextLevelGap ? `${context.summary.nextLevelGap} نقطة للمستوى التالي` : "مكتمل"
+    },
+    {
+      title: "ميزة المتابعة",
+      text: context.summary.lastMovement?.description || "سيظهر آخر تحديث هنا"
+    }
+  ];
+
+  const submitLookup = async (event) => {
+    event.preventDefault();
+    setLookupLoading(true);
+    setLookupError("");
+    try {
+      const pharmacy = await lookupPharmacy(lookup);
+      if (!pharmacy) {
+        clearSelectedPharmacy();
+        context.setSelectedPharmacy(null);
+        setLookupError("لم نتمكن من العثور على بيانات الصيدلية. يمكنك طلب التسجيل أو التواصل مع فريق كريم فارما.");
+      } else {
+        context.setSelectedPharmacy(pharmacy);
+      }
+    } catch (error) {
+      console.error("[Rewards:lookup]", error);
+      setLookupError("تعذر تنفيذ البحث حالياً. حاول مرة أخرى.");
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
+  if (!selected) {
+    return (
+      <div className="screen-stack">
+        <ScreenSection className="lookup-screen reveal narrow-screen">
+          <SectionHeader eyebrow="نقاطي" title="عرض رصيد الصيدلية" note="بحث بكود العميل ورقم واتساب" />
+          <form className="lookup-panel" onSubmit={submitLookup}>
+            <FieldInput
+              value={lookup.customerCode}
+              onChange={(event) => setLookup((current) => ({ ...current, customerCode: event.target.value }))}
+              placeholder="كود العميل"
+              required
+            />
+            <FieldInput
+              value={lookup.whatsapp}
+              onChange={(event) => setLookup((current) => ({ ...current, whatsapp: event.target.value }))}
+              placeholder="رقم واتساب"
+              required
+            />
+            {lookupError && <InlineNotice tone="error">{lookupError}</InlineNotice>}
+            <PrimaryButton type="submit">{lookupLoading ? "جاري البحث..." : "عرض نقاطي"}</PrimaryButton>
+          </form>
+        </ScreenSection>
+      </div>
+    );
+  }
+
+  return (
+    <div className="screen-stack">
+      <ScreenSection className="points-screen-header reveal">
+        <div className="screen-header-row">
+          <div>
+            <PillBadge tone="soft">{pharmacyGreeting(selected)}</PillBadge>
+            <h1 className="page-display">{pharmacyGreeting(selected)}</h1>
+          </div>
+          <GhostButton
+            type="button"
+            onClick={() => {
+              clearSelectedPharmacy();
+              context.setSelectedPharmacy(null);
+              setLookup({ customerCode: "", whatsapp: "" });
+            }}
+          >
+            بحث جديد
+          </GhostButton>
+        </div>
+
+        <div className="identity-strip">
+          <MiniState label="اسم الصيدلية" value={selected.pharmacyName} />
+          <MiniState label="كود العميل" value={selected.customerCode} />
+          <MiniState label="المحافظة" value={selected.governorate || "غير محددة"} />
+        </div>
+      </ScreenSection>
+
+      <ScreenSection className="reveal">
+        <BalanceCard
+          title="الرصيد الحالي"
+          balance={context.summary.availablePoints}
+          level={context.summary.currentLevel.levelName}
+          progressText={
+            context.summary.nextLevelGap
+              ? `${context.summary.nextLevelGap} نقطة متبقية للمستوى التالي`
+              : "أنت في أعلى مستوى متاح"
+          }
+        />
+      </ScreenSection>
+
+      <ScreenSection className="reveal">
+        <div className="stats-ribbon">
+          {statCards.map((item) => (
+            <StatCard key={item.label} label={item.label} value={item.value} />
+          ))}
+        </div>
+      </ScreenSection>
+
+      <ScreenSection className="reveal">
+        <Tabs current={tab} onChange={setTab} items={[
+          { id: "summary", label: "ملخص" },
+          { id: "transactions", label: "الحركات" },
+          { id: "rewards", label: "المكافآت" }
+        ]} />
+
+        {tab === "summary" && (
+          <div className="summary-grid">
+            <StatCard label="نقاط ترحيبية" value={context.summary.categories.welcome} />
+            <StatCard label="نقاط الطلبات" value={context.summary.categories.onlineOrders} />
+            <StatCard label="نقاط العروض" value={context.summary.categories.offers} />
+            <StatCard label="نقاط الحملات" value={context.summary.categories.campaigns} />
+          </div>
+        )}
+
+        {tab === "transactions" && (
+          context.ledger.length ? (
+            <div className="ledger-sheet">
+              <div className="ledger-sheet-head">
+                <span>التاريخ</span>
+                <span>النوع</span>
+                <span>الوصف</span>
+                <span>النقاط</span>
+                <span>المرجع</span>
+              </div>
+              {context.ledger.map((item) => (
+                <div key={item.id} className="ledger-sheet-row">
+                  <span>{formatDate(item.transactionDate)}</span>
+                  <span>{POINT_TYPE_LABELS[item.pointsType] || item.pointsType}</span>
+                  <span>{item.description || "-"}</span>
+                  <strong className={item.points < 0 ? "points-negative" : "points-positive"}>
+                    {item.points > 0 ? `+${item.points}` : item.points}
+                  </strong>
+                  <span>{item.referenceId || "-"}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="لا توجد حركات بعد" body={EMPTY_POINTS_MESSAGE} />
+          )
+        )}
+
+        {tab === "rewards" && (
+          <div className="rewards-benefits-grid">
+            {rewardItems.map((item) => (
+              <SummaryCard key={item.title} title={item.title} text={item.text} />
+            ))}
+          </div>
+        )}
+      </ScreenSection>
+    </div>
+  );
+}
+
+function OffersPage({ context }) {
+  const greeting = context.selectedPharmacy ? pharmacyGreeting(context.selectedPharmacy) : "";
+
+  return (
+    <div className="screen-stack">
+      <ScreenSection className="offers-hero reveal">
+        <div className="offers-hero-copy">
+          {greeting && <PillBadge tone="soft">{greeting}</PillBadge>}
+          <h1 className="page-display">العروض والحملات</h1>
+          <p className="page-lead">عروض نشطة ومزايا قابلة للتفعيل مرتبطة ببرنامج كريم فارما للمكافآت.</p>
+        </div>
+      </ScreenSection>
+
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="عروض نشطة" title="اختر العرض المناسب" note="بيانات مباشرة من Supabase" />
+        {context.loading ? (
+          <EmptyState title="جاري تحميل العروض" body="نقوم الآن بجلب أحدث العروض النشطة." />
+        ) : context.offersError ? (
+          <EmptyState title="تعذر تحميل العروض" body={context.offersError} />
+        ) : context.offers.length ? (
+          <div className="offers-page-grid">
+            {context.offers.map((offer) => (
+              <OfferCard key={offer.id} offer={offer} greeting={greeting} large />
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="لا توجد عروض نشطة حالياً." body="تابع الصفحة لمعرفة أحدث عروض كريم فارما." />
+        )}
+      </ScreenSection>
+    </div>
+  );
+}
+
+function OfferCard({ offer, greeting, large = false }) {
+  const typeLabel = OFFER_TYPES[offer.offerType] || offer.offerType || "عرض";
+  const rewardLabel =
+    offer.rewardText ||
+    (offer.pointsReward ? `${offer.pointsReward} نقطة` : offer.giftValue ? String(offer.giftValue) : "ميزة حصرية");
+  const message = offer.whatsappMessage || WHATSAPP_DEFAULT_MESSAGE;
+
+  return (
+    <article className={`offer-module ${large ? "offer-module-large" : ""}`}>
+      <div className="offer-module-banner">
+        {offer.bannerUrl ? (
+          <img src={offer.bannerUrl} alt={offer.title} />
+        ) : (
+          <div className="offer-banner-fallback">
+            <PillBadge>{typeLabel}</PillBadge>
+            <strong>{rewardLabel}</strong>
+          </div>
+        )}
+      </div>
+      <div className="offer-module-body">
+        <div className="offer-module-topline">
+          <PillBadge>{typeLabel}</PillBadge>
+          {greeting && <span className="offer-personalization">{greeting}</span>}
+        </div>
+        <strong className="offer-module-reward">{rewardLabel}</strong>
+        <h3>{offer.title}</h3>
+        <p>{offer.shortDescription || "عرض مخصص للصيدليات ضمن برنامج كريم فارما للمكافآت."}</p>
+        <div className="offer-meta-lines">
+          <span>{offer.terms || "تطبق الشروط حسب العرض."}</span>
+          <span>{offer.endDate ? `ينتهي ${formatDate(offer.endDate)}` : "متاح حالياً"}</span>
+        </div>
+        <PrimaryButton as="a" href={getWhatsappUrl(message)} target="_blank" rel="noreferrer">
+          اطلب العرض
+        </PrimaryButton>
+      </div>
+    </article>
   );
 }
 
@@ -435,7 +675,7 @@ function RegisterPage() {
       setErrorMessage(
         isSupabaseConfigured
           ? "تعذر إرسال الطلب حالياً. حاول مرة أخرى أو تواصل مع فريق كريم فارما."
-          : "ربط Supabase غير متاح حالياً، لذلك لا يمكن إرسال الطلب من هذه البيئة."
+          : "ربط Supabase غير متاح في هذه البيئة."
       );
     } finally {
       setSubmitting(false);
@@ -443,417 +683,127 @@ function RegisterPage() {
   };
 
   return (
-    <div className="page-stack narrow">
-      <section className="section-card reveal">
-        <SectionHeading title="طلب تسجيل صيدلية" subtitle="نموذج قصير" />
+    <div className="screen-stack">
+      <ScreenSection className="narrow-screen reveal">
+        <SectionHeader eyebrow="التسجيل" title="طلب تسجيل صيدلية" note="نموذج مختصر" />
         {success ? (
-          <div className="feedback-card success">
-            <strong>تم استلام طلبك بنجاح.</strong>
-            <p>سيقوم فريق كريم فارما بالتواصل معك لتفعيل حسابك وإرسال كود المستخدم وكلمة المرور الخاصة بمنصة كريم فارما الرقمية.</p>
-            <button type="button" className="btn btn-secondary" onClick={() => setSuccess(false)}>
-              إرسال طلب جديد
-            </button>
-          </div>
+          <EmptyState
+            title="تم استلام طلبك بنجاح."
+            body="سيقوم فريق كريم فارما بالتواصل معك لتفعيل حسابك وإرسال كود المستخدم وكلمة المرور الخاصة بمنصة كريم فارما الرقمية."
+          />
         ) : (
-          <form className="register-form" onSubmit={handleSubmit}>
-            <input required placeholder="اسم الصيدلية" value={form.pharmacyName} onChange={updateField("pharmacyName")} />
-            <input required placeholder="اسم المسؤول" value={form.contactName} onChange={updateField("contactName")} />
-            <input required placeholder="رقم واتساب" value={form.whatsapp} onChange={updateField("whatsapp")} />
-            <input required type="email" placeholder="البريد الإلكتروني" value={form.email} onChange={updateField("email")} />
-            <select required value={form.governorate} onChange={updateField("governorate")}>
+          <form className="form-grid" onSubmit={handleSubmit}>
+            <FieldInput required value={form.pharmacyName} onChange={updateField("pharmacyName")} placeholder="اسم الصيدلية" />
+            <FieldInput required value={form.contactName} onChange={updateField("contactName")} placeholder="اسم المسؤول" />
+            <FieldInput required value={form.whatsapp} onChange={updateField("whatsapp")} placeholder="رقم واتساب" />
+            <FieldInput required type="email" value={form.email} onChange={updateField("email")} placeholder="البريد الإلكتروني" />
+            <FieldSelect required value={form.governorate} onChange={updateField("governorate")}>
               <option value="">المحافظة</option>
               {GOVERNORATES.map((item) => (
                 <option key={item} value={item}>
                   {item}
                 </option>
               ))}
-            </select>
-            <input required placeholder="العنوان" value={form.address} onChange={updateField("address")} />
-            <select value={form.requestType} onChange={updateField("requestType")}>
+            </FieldSelect>
+            <FieldInput required value={form.address} onChange={updateField("address")} placeholder="العنوان" />
+            <FieldSelect value={form.requestType} onChange={updateField("requestType")}>
               <option value="عميل حالي">عميل حالي</option>
               <option value="تكويد جديد">تكويد جديد</option>
-            </select>
-            <input placeholder="كود العميل إن وجد" value={form.customerCode} onChange={updateField("customerCode")} />
-            {errorMessage && <div className="feedback-inline error">{errorMessage}</div>}
-            <button className="btn btn-primary full-width cta-shimmer" type="submit" disabled={submitting}>
-              {submitting ? "جاري الإرسال..." : "إرسال الطلب"}
-            </button>
+            </FieldSelect>
+            <FieldInput value={form.customerCode} onChange={updateField("customerCode")} placeholder="كود العميل إن وجد" />
+            {errorMessage && <InlineNotice tone="error">{errorMessage}</InlineNotice>}
+            <PrimaryButton type="submit">{submitting ? "جاري الإرسال..." : "إرسال الطلب"}</PrimaryButton>
           </form>
         )}
-      </section>
+      </ScreenSection>
     </div>
-  );
-}
-
-function MyPointsPage({ context }) {
-  const [lookup, setLookup] = useState({
-    customerCode: context.selectedPharmacy?.customerCode || "",
-    whatsapp: context.selectedPharmacy?.whatsapp || ""
-  });
-  const [tab, setTab] = useState("summary");
-  const [loading, setLoading] = useState(false);
-  const [lookupError, setLookupError] = useState("");
-
-  const handleLookup = async (event) => {
-    event.preventDefault();
-    setLoading(true);
-    setLookupError("");
-    try {
-      const pharmacy = await lookupPharmacy(lookup);
-      if (!pharmacy) {
-        context.setSelectedPharmacy(null);
-        clearSelectedPharmacy();
-        setLookupError("لم نتمكن من العثور على بيانات الصيدلية. يمكنك طلب التسجيل أو التواصل مع فريق كريم فارما.");
-      } else {
-        context.setSelectedPharmacy(pharmacy);
-      }
-    } catch {
-      setLookupError("تعذر تنفيذ البحث حالياً. حاول مرة أخرى.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const selected = context.selectedPharmacy;
-  const summaryCards = [
-    { label: "نقاط هذا الشهر", value: context.pointsSummary.monthlyPoints },
-    { label: "المستوى الحالي", value: context.pointsSummary.currentLevel.levelName },
-    { label: "المتبقي للمستوى التالي", value: context.pointsSummary.nextLevelGap || "مكتمل" }
-  ];
-  const categoryCards = [
-    { label: "نقاط ترحيبية", value: context.pointsSummary.categories.welcome },
-    { label: "نقاط الطلبات الأونلاين", value: context.pointsSummary.categories.onlineOrders },
-    { label: "نقاط العروض", value: context.pointsSummary.categories.offers },
-    { label: "نقاط الحملات", value: context.pointsSummary.categories.campaigns }
-  ];
-
-  return (
-    <div className="page-stack">
-      {!selected && (
-        <section className="section-card reveal narrow-card">
-          <SectionHeading title="عرض نقاطي" subtitle="بحث بكود العميل وواتساب" />
-          <form className="lookup-form" onSubmit={handleLookup}>
-            <input
-              required
-              placeholder="كود العميل"
-              value={lookup.customerCode}
-              onChange={(event) => setLookup((current) => ({ ...current, customerCode: event.target.value }))}
-            />
-            <input
-              required
-              placeholder="رقم واتساب"
-              value={lookup.whatsapp}
-              onChange={(event) => setLookup((current) => ({ ...current, whatsapp: event.target.value }))}
-            />
-            {lookupError && <div className="feedback-inline error">{lookupError}</div>}
-            <button type="submit" className="btn btn-primary cta-shimmer" disabled={loading}>
-              {loading ? "جاري البحث..." : "عرض نقاطي"}
-            </button>
-          </form>
-        </section>
-      )}
-
-      {selected && (
-        <>
-          <section className="section-card reveal">
-            <div className="profile-topbar">
-              <div>
-                <span>أهلاً</span>
-                <strong>
-                  {selected.contactName ? `د/ ${selected.contactName} - ${selected.pharmacyName}` : selected.pharmacyName}
-                </strong>
-              </div>
-              <button
-                type="button"
-                className="link-button"
-                onClick={() => {
-                  clearSelectedPharmacy();
-                  context.setSelectedPharmacy(null);
-                  setLookup({ customerCode: "", whatsapp: "" });
-                }}
-              >
-                بحث جديد
-              </button>
-            </div>
-
-            <div className="profile-strip">
-              <div>
-                <span>اسم الصيدلية</span>
-                <strong>{selected.pharmacyName}</strong>
-              </div>
-              <div>
-                <span>كود العميل</span>
-                <strong>{selected.customerCode}</strong>
-              </div>
-              <div>
-                <span>المحافظة</span>
-                <strong>{selected.governorate || "غير محددة"}</strong>
-              </div>
-            </div>
-          </section>
-
-          <section className="points-hero reveal">
-            <span className="eyebrow">رصيدك الحالي</span>
-            <strong className="points-number">
-              <AnimatedNumber value={context.pointsSummary.availablePoints} />
-            </strong>
-            <p>يعتمد الرصيد على جدول points_ledger كمصدر أساسي للحركات.</p>
-          </section>
-
-          <section className="compact-grid columns-3 reveal">
-            {summaryCards.map((item) => (
-              <article key={item.label} className="compact-tile metric">
-                <span>{item.label}</span>
-                <strong>{typeof item.value === "number" ? <AnimatedNumber value={item.value} /> : item.value}</strong>
-              </article>
-            ))}
-          </section>
-
-          <section className="section-card reveal">
-            <div className="segmented-tabs" role="tablist" aria-label="تفاصيل النقاط">
-              <button type="button" className={tab === "summary" ? "active" : ""} onClick={() => setTab("summary")}>
-                ملخص
-              </button>
-              <button type="button" className={tab === "details" ? "active" : ""} onClick={() => setTab("details")}>
-                التفاصيل
-              </button>
-              <button type="button" className={tab === "redemption" ? "active" : ""} onClick={() => setTab("redemption")}>
-                الاستبدال
-              </button>
-            </div>
-
-            {tab === "summary" && (
-              <div className="compact-grid columns-4">
-                {categoryCards.map((item) => (
-                  <article key={item.label} className="compact-tile">
-                    <span>{item.label}</span>
-                    <strong>
-                      <AnimatedNumber value={item.value} />
-                    </strong>
-                  </article>
-                ))}
-              </div>
-            )}
-
-            {tab === "details" && (
-              context.pharmacyLedger.length ? (
-                <div className="ledger-table">
-                  <div className="ledger-row ledger-head">
-                    <span>التاريخ</span>
-                    <span>النوع</span>
-                    <span>الوصف</span>
-                    <span>النقاط</span>
-                    <span>المرجع</span>
-                  </div>
-                  {context.pharmacyLedger.map((item) => (
-                    <div key={item.id} className="ledger-row">
-                      <span>{formatDate(item.transactionDate)}</span>
-                      <span>{POINT_TYPE_LABELS[item.pointsType] || item.pointsType}</span>
-                      <span>{item.description || "-"}</span>
-                      <strong className={item.points < 0 ? "negative" : "positive"}>
-                        {item.points > 0 ? `+${item.points}` : item.points}
-                      </strong>
-                      <span>{item.referenceId || "-"}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState message={EMPTY_POINTS_MESSAGE} />
-              )
-            )}
-
-            {tab === "redemption" && (
-              context.pharmacyRedemptions.length ? (
-                <div className="compact-grid columns-3">
-                  {context.pharmacyRedemptions.map((item) => (
-                    <article key={item.id} className="compact-tile redemption">
-                      <strong>{item.rewardDescription || item.rewardType || "استبدال"}</strong>
-                      <p>{item.pointsUsed} نقطة</p>
-                      <span>{item.status || "-"}</span>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState message="لا توجد عمليات استبدال مسجلة حالياً." />
-              )
-            )}
-          </section>
-        </>
-      )}
-    </div>
-  );
-}
-
-function OffersPage({ offers, loading, error }) {
-  return (
-    <div className="page-stack">
-      <section className="section-card reveal">
-        <SectionHeading title="العروض والحملات" subtitle="عروض نشطة فقط" />
-        <OffersPreview offers={offers} loading={loading} error={error} />
-      </section>
-    </div>
-  );
-}
-
-function OffersPreview({ offers, loading, error, limit = null }) {
-  if (loading) return <EmptyState message="جاري تحميل العروض..." />;
-  if (error) return <EmptyState message={error} />;
-  if (!offers.length) return <EmptyState message="لا توجد عروض نشطة حالياً. تابع الصفحة لمعرفة أحدث عروض كريم فارما." />;
-  return (
-    <div className="offers-grid">
-      {(limit ? offers.slice(0, limit) : offers).map((offer) => (
-        <OfferCard key={offer.id} offer={offer} />
-      ))}
-    </div>
-  );
-}
-
-function OfferCard({ offer }) {
-  const rewardLabel = offer.rewardText || (offer.pointsReward ? `${offer.pointsReward} نقطة` : offer.giftValue ? String(offer.giftValue) : "عرض");
-  return (
-    <article className="offer-card">
-      <div className="offer-banner">
-        {offer.bannerUrl ? <img src={offer.bannerUrl} alt={offer.title} /> : <div className="offer-fallback-banner">{offer.offerType || "عرض"}</div>}
-      </div>
-      <div className="offer-body">
-        <strong className="offer-value">{rewardLabel}</strong>
-        <h3>{offer.title}</h3>
-        <p>{offer.shortDescription || "عرض مخصص للصيدليات."}</p>
-        <div className="offer-meta">
-          <span>{offer.offerType || "مزايا"}</span>
-          <span>{offer.terms || "تطبق الشروط حسب العرض."}</span>
-          <span>{offer.endDate ? `ينتهي ${formatDate(offer.endDate)}` : "متاح حالياً"}</span>
-        </div>
-        <a className="btn btn-primary" href={getWhatsappUrl(offer.whatsappMessage || WHATSAPP_DEFAULT_MESSAGE)} target="_blank" rel="noreferrer">
-          اطلب العرض
-        </a>
-      </div>
-    </article>
   );
 }
 
 function HowItWorksPage({ levels }) {
   return (
-    <div className="page-stack">
-      <section className="section-card reveal">
-        <SectionHeading title="كيف تجمع النقاط؟" subtitle="دليل قصير" />
-        <div className="compact-grid columns-4">
+    <div className="screen-stack">
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="كيف يعمل" title="دليل سريع" note="نسخة مختصرة" />
+        <div className="steps-grid">
           {[
-            "سجل صيدليتك",
-            "فعّل المنصة الرقمية",
-            "اطلب أونلاين",
-            "استفد من العروض"
-          ].map((item, index) => (
-            <article key={item} className="guide-tile">
-              <b>{index + 1}</b>
-              <strong>{item}</strong>
-            </article>
+            { step: "1", title: "سجل صيدليتك", text: "ابدأ ببيانات الصيدلية." },
+            { step: "2", title: "فعّل المنصة", text: "استلم بيانات الدخول." },
+            { step: "3", title: "اطلب أونلاين", text: "كل طلب مؤهل يضيف نقاطاً." },
+            { step: "4", title: "استفد من العروض", text: "تابع العروض حسب النشاط." }
+          ].map((item) => (
+            <StepCard key={item.step} {...item} />
           ))}
         </div>
-      </section>
+      </ScreenSection>
 
-      <section className="section-card reveal">
-        <SectionHeading title="أنواع النقاط" subtitle="تصنيف مختصر" />
-        <div className="compact-grid columns-3">
-          {Object.values(POINT_TYPE_LABELS).map((label) => (
-            <article key={label} className="compact-tile">
-              <strong>{label}</strong>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="section-card reveal">
-        <SectionHeading title="مستويات المكافآت" subtitle="حسب إجمالي النقاط" />
-        <div className="compact-grid columns-4">
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="المستويات" title="مستويات المكافآت" note="حسب إجمالي النقاط" />
+        <div className="overview-grid">
           {levels.map((level) => (
-            <article key={level.id || level.levelName} className="level-tile">
-              <strong>{level.levelName}</strong>
-              <span>
-                {level.minPoints} إلى {Number.isFinite(level.maxPoints) ? level.maxPoints : "فأكثر"} نقطة
-              </span>
-            </article>
+            <SummaryCard
+              key={level.id || level.levelName}
+              title={level.levelName}
+              text={`${level.minPoints} إلى ${Number.isFinite(level.maxPoints) ? level.maxPoints : "فأكثر"} نقطة`}
+            />
           ))}
         </div>
-      </section>
-
-      <section className="section-card reveal">
-        <SectionHeading title="استبدال النقاط" subtitle="وفق العروض والسياسات" />
-        <p className="support-copy">
-          يمكن استبدال النقاط وفق العروض والسياسات المعلنة من كريم فارما، مثل خصومات، رصيد مكافآت، بضاعة مجانية، أو مزايا خاصة.
-        </p>
-      </section>
+      </ScreenSection>
     </div>
   );
 }
 
 function AboutPage() {
   return (
-    <div className="page-stack">
-      <section className="section-card reveal">
-        <SectionHeading title="من هي كريم فارما؟" subtitle="نبذة رسمية" />
-        <div className="about-grid">
+    <div className="screen-stack">
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="عن كريم فارما" title="ثقة دوائية وخدمة للصيدليات" note="نبذة رسمية" />
+        <div className="copy-stack">
           <p>كريم فارما شركة مصرية متخصصة في توزيع الأدوية تأسست عام 2005.</p>
           <p>تُعد واحدة من أكبر شركات توزيع الأدوية في مصر، وحاصلة على شهادة GSDP الخاصة بجودة التخزين والتوزيع الدوائي.</p>
           <p>يرأسها د. رفاعي ربيع رئيس لجنة الموزعين بالشعبة العامة للأدوية.</p>
           <p>هدفنا تقديم خدمة توزيع احترافية تساعد الصيدليات على النمو وتحقيق أفضل تجربة شراء.</p>
         </div>
-        <div className="compact-grid columns-4">
-          <TrustTile title="تأسست عام 2005" />
-          <TrustTile title="شهادة GSDP" />
-          <TrustTile title="توزيع دوائي احترافي" />
-          <TrustTile title="منصة رقمية للصيدليات" />
-        </div>
-      </section>
+      </ScreenSection>
     </div>
   );
 }
 
 function ContactPage() {
   return (
-    <div className="page-stack">
-      <section className="section-card reveal">
-        <SectionHeading title="الفروع والتواصل" subtitle="خدمة كريم فارما" />
-        <div className="compact-grid columns-3">
+    <div className="screen-stack">
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="التواصل" title="الفروع ووسائل التواصل" note="معلومات رسمية" />
+        <div className="overview-grid">
           {CONTACT_BRANCHES.map((branch) => (
-            <article key={branch} className="compact-tile">
-              <strong>{branch}</strong>
-            </article>
+            <SummaryCard key={branch} title={branch} text="فرع كريم فارما" />
           ))}
         </div>
-        <div className="contact-links">
-          <a className="btn btn-primary" href={getWhatsappUrl()} target="_blank" rel="noreferrer">
-            واتساب: 01145000445
-          </a>
-          <a className="btn btn-secondary" href="https://www.facebook.com/KareemPharmaOfficial/" target="_blank" rel="noreferrer">
-            Facebook / KareemPharmaOfficial
-          </a>
+        <div className="hero-cta-row">
+          <PrimaryButton as="a" href={getWhatsappUrl()} target="_blank" rel="noreferrer">
+            واتساب
+          </PrimaryButton>
+          <SecondaryButton as="a" href="https://www.facebook.com/KareemPharmaOfficial/" target="_blank" rel="noreferrer">
+            Facebook
+          </SecondaryButton>
         </div>
-      </section>
+      </ScreenSection>
     </div>
   );
 }
 
 function MorePage() {
   return (
-    <div className="page-stack">
-      <section className="section-card reveal">
-        <SectionHeading title="المزيد" subtitle="روابط سريعة" />
-        <div className="compact-grid columns-3">
-          <Link to="/how-it-works" className="compact-link-card">
-            <strong>كيف يعمل</strong>
-            <p>دليل جمع النقاط ومستويات المكافآت.</p>
-          </Link>
-          <Link to="/about" className="compact-link-card">
-            <strong>عن كريم فارما</strong>
-            <p>نبذة رسمية مختصرة.</p>
-          </Link>
-          <Link to="/contact" className="compact-link-card">
-            <strong>التواصل</strong>
-            <p>الفروع ووسائل التواصل الرسمية.</p>
-          </Link>
+    <div className="screen-stack">
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="المزيد" title="روابط سريعة" note="وصول مباشر" />
+        <div className="overview-grid">
+          <CompactLinkCard to="/how-it-works" title="كيف يعمل" text="دليل جمع النقاط" />
+          <CompactLinkCard to="/about" title="عن كريم فارما" text="نبذة مختصرة" />
+          <CompactLinkCard to="/contact" title="التواصل" text="الفروع والوسائل الرسمية" />
+          <CompactLinkCard to="/admin" title="الإدارة" text="لوحة الإدارة" />
         </div>
-      </section>
+      </ScreenSection>
     </div>
   );
 }
@@ -875,27 +825,20 @@ function AdminPage({ levels, onReloadOffers }) {
     createdBy: "admin"
   });
   const [offerForm, setOfferForm] = useState(DEFAULT_OFFER_FORM);
-
   const adminPassword = import.meta.env?.VITE_ADMIN_PASSWORD?.trim();
 
   const loadAdmin = async () => {
     setLoading(true);
-    const rows = await fetchAdminDataset();
-    setDataset(rows);
-    setLoading(false);
+    try {
+      setDataset(await fetchAdminDataset());
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     if (authorized) loadAdmin().catch((error) => console.error("[Rewards:admin-load]", error));
   }, [authorized]);
-
-  const handleSaveOffer = async (event) => {
-    event.preventDefault();
-    await saveOffer(offerForm);
-    setOfferForm(DEFAULT_OFFER_FORM);
-    await loadAdmin();
-    await onReloadOffers();
-  };
 
   const filteredLedger = useMemo(() => {
     const rows = dataset?.points_ledger || [];
@@ -904,124 +847,109 @@ function AdminPage({ levels, onReloadOffers }) {
 
   if (!adminPassword) {
     return (
-      <div className="page-stack narrow">
-        <section className="section-card reveal">
-          <SectionHeading title="لوحة الإدارة" subtitle="مقفلة" />
-          <EmptyState message="لا يمكن فتح لوحة الإدارة قبل ضبط VITE_ADMIN_PASSWORD." />
-        </section>
+      <div className="screen-stack">
+        <ScreenSection className="narrow-screen reveal">
+          <EmptyState title="لوحة الإدارة مقفلة" body="لا يمكن فتح لوحة الإدارة قبل ضبط VITE_ADMIN_PASSWORD." />
+        </ScreenSection>
       </div>
     );
   }
 
   if (!authorized) {
     return (
-      <div className="page-stack narrow">
-        <section className="section-card reveal">
-          <SectionHeading title="لوحة الإدارة" subtitle="دخول محمي" />
+      <div className="screen-stack">
+        <ScreenSection className="narrow-screen reveal">
+          <SectionHeader eyebrow="الإدارة" title="دخول محمي" note="كلمة مرور الإدارة" />
           <form
-            className="lookup-form"
+            className="lookup-panel"
             onSubmit={(event) => {
               event.preventDefault();
               if (password === adminPassword) setAuthorized(true);
             }}
           >
-            <input type="password" required placeholder="كلمة مرور الإدارة" value={password} onChange={(event) => setPassword(event.target.value)} />
-            <button type="submit" className="btn btn-primary">
-              دخول
-            </button>
+            <FieldInput required type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="كلمة مرور الإدارة" />
+            <PrimaryButton type="submit">دخول</PrimaryButton>
           </form>
-        </section>
+        </ScreenSection>
       </div>
     );
   }
 
   return (
-    <div className="page-stack">
-      <section className="section-card reveal">
-        <SectionHeading title="إدارة برنامج كريم فارما للمكافآت" subtitle={loading ? "جاري تحميل بيانات Supabase..." : "بيانات حية من Supabase"} />
-        {!isSupabaseConfigured && <EmptyState message="Supabase غير مهيأ في هذه البيئة." />}
-      </section>
+    <div className="screen-stack">
+      <ScreenSection className="reveal">
+        <SectionHeader
+          eyebrow="الإدارة"
+          title="إدارة برنامج كريم فارما للمكافآت"
+          note={loading ? "جاري تحميل بيانات Supabase..." : "بيانات حية من Supabase"}
+        />
+        {!isSupabaseConfigured && <InlineNotice tone="error">Supabase غير مهيأ في هذه البيئة.</InlineNotice>}
+      </ScreenSection>
 
-      <section className="section-card reveal">
-        <SectionHeading title="طلبات التسجيل" subtitle="تحديث الحالة وتصدير CSV" />
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="طلبات التسجيل" title="الحالات" note="تحديث مباشر" />
         <AdminToolbar rows={dataset?.registration_requests || []} filename="registration_requests.csv" />
-        <div className="admin-table">
+        <AdminList>
           {(dataset?.registration_requests || []).map((row) => (
-            <div key={row.id} className="admin-row">
-              <div>
-                <strong>{row.pharmacy_name}</strong>
-                <span>{row.contact_name}</span>
-                <span>{row.customer_code || "بدون كود عميل"}</span>
-              </div>
-              <div className="admin-row-actions">
-                <select
-                  value={row.status || "new"}
-                  onChange={async (event) => {
-                    await updateRegistrationRequestStatus(row.id, event.target.value);
-                    await loadAdmin();
-                  }}
-                >
-                  {["new", "reviewing", "linked", "credentials_sent", "activated", "incomplete"].map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            <AdminRow key={row.id} title={row.pharmacy_name} meta={[row.contact_name, row.customer_code || "بدون كود عميل"]}>
+              <FieldSelect
+                value={row.status || "new"}
+                onChange={async (event) => {
+                  await updateRegistrationRequestStatus(row.id, event.target.value);
+                  await loadAdmin();
+                }}
+              >
+                {["new", "reviewing", "linked", "credentials_sent", "activated", "incomplete"].map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </FieldSelect>
+            </AdminRow>
           ))}
-        </div>
-      </section>
+        </AdminList>
+      </ScreenSection>
 
-      <section className="section-card reveal">
-        <SectionHeading title="الصيدليات" subtitle="اختيار صيدلية وعرض السجل" />
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="الصيدليات" title="اختيار السجل" note="عرض دفتر النقاط" />
         <AdminToolbar rows={dataset?.pharmacies || []} filename="pharmacies.csv" />
-        <select value={selectedPharmacyId} onChange={(event) => setSelectedPharmacyId(event.target.value)} className="admin-select">
+        <FieldSelect value={selectedPharmacyId} onChange={(event) => setSelectedPharmacyId(event.target.value)}>
           <option value="">كل الصيدليات</option>
           {(dataset?.pharmacies || []).map((row) => (
             <option key={row.id} value={row.id}>
               {row.pharmacy_name}
             </option>
           ))}
-        </select>
-      </section>
+        </FieldSelect>
+      </ScreenSection>
 
-      <section className="section-card reveal">
-        <SectionHeading title="دفتر النقاط" subtitle="points_ledger" />
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="دفتر النقاط" title="points_ledger" note="المصدر الأساسي" />
         <AdminToolbar rows={filteredLedger} filename="points_ledger.csv" />
-        <div className="ledger-table">
-          <div className="ledger-row ledger-head">
+        <div className="ledger-sheet">
+          <div className="ledger-sheet-head">
             <span>التاريخ</span>
             <span>النوع</span>
             <span>الوصف</span>
             <span>النقاط</span>
             <span>المرجع</span>
           </div>
-          {filteredLedger.map((row) => {
-            const mapped = {
-              transactionDate: row.transaction_date || row.created_at,
-              pointsType: row.points_type || row.activity_type || "admin",
-              description: row.description || row.notes || "",
-              points: row.points,
-              referenceId: row.reference_id || row.source_id || ""
-            };
-            return (
-              <div key={row.id} className="ledger-row">
-                <span>{formatDate(mapped.transactionDate)}</span>
-                <span>{POINT_TYPE_LABELS[mapped.pointsType] || mapped.pointsType}</span>
-                <span>{mapped.description || "-"}</span>
-                <strong className={Number(mapped.points) < 0 ? "negative" : "positive"}>{mapped.points}</strong>
-                <span>{mapped.referenceId || "-"}</span>
-              </div>
-            );
-          })}
+          {filteredLedger.map((row) => (
+            <div key={row.id} className="ledger-sheet-row">
+              <span>{formatDate(row.transaction_date || row.created_at)}</span>
+              <span>{POINT_TYPE_LABELS[row.points_type] || row.points_type || row.activity_type || "admin"}</span>
+              <span>{row.description || row.notes || "-"}</span>
+              <strong className={Number(row.points) < 0 ? "points-negative" : "points-positive"}>{row.points}</strong>
+              <span>{row.reference_id || row.source_id || "-"}</span>
+            </div>
+          ))}
         </div>
-      </section>
+      </ScreenSection>
 
-      <section className="section-card reveal">
-        <SectionHeading title="إضافة نقاط يدوية" subtitle="سجل جديد في points_ledger" />
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="إضافة يدوية" title="سجل نقاط جديد" note="إداري" />
         <form
-          className="register-form"
+          className="form-grid"
           onSubmit={async (event) => {
             event.preventDefault();
             await addManualPointsRecord(manualPoints);
@@ -1038,65 +966,71 @@ function AdminPage({ levels, onReloadOffers }) {
             await loadAdmin();
           }}
         >
-          <select value={manualPoints.pharmacyId} onChange={(event) => setManualPoints((current) => ({ ...current, pharmacyId: event.target.value }))}>
+          <FieldSelect value={manualPoints.pharmacyId} onChange={(event) => setManualPoints((current) => ({ ...current, pharmacyId: event.target.value }))}>
             <option value="">اختر الصيدلية</option>
             {(dataset?.pharmacies || []).map((row) => (
               <option key={row.id} value={row.id}>
                 {row.pharmacy_name}
               </option>
             ))}
-          </select>
-          <input placeholder="كود العميل" value={manualPoints.customerCode} onChange={(event) => setManualPoints((current) => ({ ...current, customerCode: event.target.value }))} />
-          <select value={manualPoints.pointsType} onChange={(event) => setManualPoints((current) => ({ ...current, pointsType: event.target.value }))}>
-            {Object.keys(POINT_TYPE_LABELS).map((key) => (
+          </FieldSelect>
+          <FieldInput value={manualPoints.customerCode} onChange={(event) => setManualPoints((current) => ({ ...current, customerCode: event.target.value }))} placeholder="كود العميل" />
+          <FieldSelect value={manualPoints.pointsType} onChange={(event) => setManualPoints((current) => ({ ...current, pointsType: event.target.value }))}>
+            {Object.entries(POINT_TYPE_LABELS).map(([key, label]) => (
               <option key={key} value={key}>
-                {POINT_TYPE_LABELS[key]}
+                {label}
               </option>
             ))}
-          </select>
-          <input required placeholder="الوصف" value={manualPoints.description} onChange={(event) => setManualPoints((current) => ({ ...current, description: event.target.value }))} />
-          <input required type="number" placeholder="النقاط" value={manualPoints.points} onChange={(event) => setManualPoints((current) => ({ ...current, points: event.target.value }))} />
-          <input placeholder="المرجع" value={manualPoints.referenceId} onChange={(event) => setManualPoints((current) => ({ ...current, referenceId: event.target.value }))} />
-          <button className="btn btn-primary full-width" type="submit">
-            إضافة السجل
-          </button>
+          </FieldSelect>
+          <FieldInput required value={manualPoints.description} onChange={(event) => setManualPoints((current) => ({ ...current, description: event.target.value }))} placeholder="الوصف" />
+          <FieldInput required type="number" value={manualPoints.points} onChange={(event) => setManualPoints((current) => ({ ...current, points: event.target.value }))} placeholder="النقاط" />
+          <FieldInput value={manualPoints.referenceId} onChange={(event) => setManualPoints((current) => ({ ...current, referenceId: event.target.value }))} placeholder="المرجع" />
+          <PrimaryButton type="submit">إضافة السجل</PrimaryButton>
         </form>
-      </section>
+      </ScreenSection>
 
-      <section className="section-card reveal">
-        <SectionHeading title="العروض" subtitle="إضافة وتفعيل وتعطيل" />
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="العروض" title="إضافة وتعديل" note="حفظ مباشر في Supabase" />
         <AdminToolbar rows={dataset?.offers || []} filename="offers.csv" />
-        <form className="register-form" onSubmit={handleSaveOffer}>
-          <input required placeholder="العنوان" value={offerForm.title} onChange={(event) => setOfferForm((current) => ({ ...current, title: event.target.value }))} />
-          <input placeholder="وصف مختصر" value={offerForm.shortDescription} onChange={(event) => setOfferForm((current) => ({ ...current, shortDescription: event.target.value }))} />
-          <input placeholder="banner_url" value={offerForm.bannerUrl} onChange={(event) => setOfferForm((current) => ({ ...current, bannerUrl: event.target.value }))} />
-          <input placeholder="offer_type" value={offerForm.offerType} onChange={(event) => setOfferForm((current) => ({ ...current, offerType: event.target.value }))} />
-          <input placeholder="reward_text" value={offerForm.rewardText} onChange={(event) => setOfferForm((current) => ({ ...current, rewardText: event.target.value }))} />
-          <input type="number" placeholder="points_reward" value={offerForm.pointsReward} onChange={(event) => setOfferForm((current) => ({ ...current, pointsReward: event.target.value }))} />
-          <input placeholder="gift_value" value={offerForm.giftValue} onChange={(event) => setOfferForm((current) => ({ ...current, giftValue: event.target.value }))} />
-          <input type="date" value={offerForm.startDate} onChange={(event) => setOfferForm((current) => ({ ...current, startDate: event.target.value }))} />
-          <input type="date" value={offerForm.endDate} onChange={(event) => setOfferForm((current) => ({ ...current, endDate: event.target.value }))} />
-          <input placeholder="terms" value={offerForm.terms} onChange={(event) => setOfferForm((current) => ({ ...current, terms: event.target.value }))} />
-          <input placeholder="whatsapp_message" value={offerForm.whatsappMessage} onChange={(event) => setOfferForm((current) => ({ ...current, whatsappMessage: event.target.value }))} />
-          <input type="number" placeholder="sort_order" value={offerForm.sortOrder} onChange={(event) => setOfferForm((current) => ({ ...current, sortOrder: event.target.value }))} />
-          <button className="btn btn-primary full-width" type="submit">
-            حفظ العرض
-          </button>
+        <form
+          className="form-grid"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            await saveOffer(offerForm);
+            setOfferForm(DEFAULT_OFFER_FORM);
+            await loadAdmin();
+            await onReloadOffers();
+          }}
+        >
+          <FieldInput required value={offerForm.title} onChange={(event) => setOfferForm((current) => ({ ...current, title: event.target.value }))} placeholder="العنوان" />
+          <FieldInput value={offerForm.shortDescription} onChange={(event) => setOfferForm((current) => ({ ...current, shortDescription: event.target.value }))} placeholder="وصف مختصر" />
+          <FieldInput value={offerForm.bannerUrl} onChange={(event) => setOfferForm((current) => ({ ...current, bannerUrl: event.target.value }))} placeholder="banner_url" />
+          <FieldInput value={offerForm.offerType} onChange={(event) => setOfferForm((current) => ({ ...current, offerType: event.target.value }))} placeholder="offer_type" />
+          <FieldInput value={offerForm.rewardText} onChange={(event) => setOfferForm((current) => ({ ...current, rewardText: event.target.value }))} placeholder="reward_text" />
+          <FieldInput type="number" value={offerForm.pointsReward} onChange={(event) => setOfferForm((current) => ({ ...current, pointsReward: event.target.value }))} placeholder="points_reward" />
+          <FieldInput value={offerForm.giftValue} onChange={(event) => setOfferForm((current) => ({ ...current, giftValue: event.target.value }))} placeholder="gift_value" />
+          <FieldInput type="date" value={offerForm.startDate} onChange={(event) => setOfferForm((current) => ({ ...current, startDate: event.target.value }))} placeholder="start_date" />
+          <FieldInput type="date" value={offerForm.endDate} onChange={(event) => setOfferForm((current) => ({ ...current, endDate: event.target.value }))} placeholder="end_date" />
+          <FieldInput value={offerForm.terms} onChange={(event) => setOfferForm((current) => ({ ...current, terms: event.target.value }))} placeholder="terms" />
+          <FieldInput value={offerForm.whatsappMessage} onChange={(event) => setOfferForm((current) => ({ ...current, whatsappMessage: event.target.value }))} placeholder="whatsapp_message" />
+          <FieldInput type="number" value={offerForm.sortOrder} onChange={(event) => setOfferForm((current) => ({ ...current, sortOrder: event.target.value }))} placeholder="sort_order" />
+          <PrimaryButton type="submit">حفظ العرض</PrimaryButton>
         </form>
-        <div className="offers-grid">
+
+        <div className="offers-showcase-grid">
           {(dataset?.offers || []).map((row) => {
             const offer = mapOfferRow(row);
             return (
-              <article key={offer.id} className="offer-card admin-offer-card">
-                <div className="offer-body">
-                  <strong className="offer-value">{offer.rewardText || offer.offerType || "Offer"}</strong>
-                  <h3>{offer.title}</h3>
-                  <p>{offer.shortDescription}</p>
-                  <div className="admin-actions-inline">
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => setOfferForm({
+              <article key={offer.id} className="admin-offer-mini">
+                <div className="admin-offer-mini-copy">
+                  <strong>{offer.title}</strong>
+                  <span>{offer.rewardText || offer.offerType || "Offer"}</span>
+                </div>
+                <div className="admin-actions-cluster">
+                  <SecondaryButton
+                    type="button"
+                    onClick={() =>
+                      setOfferForm({
                         id: offer.id,
                         title: offer.title,
                         shortDescription: offer.shortDescription,
@@ -1107,100 +1041,154 @@ function AdminPage({ levels, onReloadOffers }) {
                         giftValue: offer.giftValue || "",
                         startDate: offer.startDate || "",
                         endDate: offer.endDate || "",
-                        terms: offer.terms,
+                        terms: offer.terms || "",
                         isActive: offer.isActive,
                         whatsappMessage: offer.whatsappMessage || WHATSAPP_DEFAULT_MESSAGE,
                         sortOrder: offer.sortOrder
-                      })}
-                    >
-                      تعديل
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-tertiary"
-                      onClick={async () => {
-                        await toggleOfferActiveState(offer.id, offer.isActive);
-                        await loadAdmin();
-                        await onReloadOffers();
-                      }}
-                    >
-                      {offer.isActive ? "تعطيل" : "تفعيل"}
-                    </button>
-                  </div>
+                      })
+                    }
+                  >
+                    تعديل
+                  </SecondaryButton>
+                  <GhostButton
+                    type="button"
+                    onClick={async () => {
+                      await toggleOfferActiveState(offer.id, offer.isActive);
+                      await loadAdmin();
+                      await onReloadOffers();
+                    }}
+                  >
+                    {offer.isActive ? "تعطيل" : "تفعيل"}
+                  </GhostButton>
                 </div>
               </article>
             );
           })}
         </div>
-      </section>
+      </ScreenSection>
 
-      <section className="section-card reveal">
-        <SectionHeading title="مستويات المكافآت" subtitle="loyalty_levels" />
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="المستويات" title="loyalty_levels" note="الترتيب الحالي" />
         <AdminToolbar rows={levels} filename="loyalty_levels.csv" />
-        <div className="compact-grid columns-4">
+        <div className="overview-grid">
           {levels.map((level) => (
-            <article key={level.id || level.levelName} className="level-tile">
-              <strong>{level.levelName}</strong>
-              <span>
-                {level.minPoints} - {Number.isFinite(level.maxPoints) ? level.maxPoints : "فأكثر"}
-              </span>
-            </article>
+            <SummaryCard
+              key={level.id || level.levelName}
+              title={level.levelName}
+              text={`${level.minPoints} - ${Number.isFinite(level.maxPoints) ? level.maxPoints : "فأكثر"}`}
+            />
           ))}
         </div>
-      </section>
+      </ScreenSection>
 
-      <section className="section-card reveal">
-        <SectionHeading title="رفع النقاط" subtitle="point_uploads" />
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="رفع النقاط" title="point_uploads" note="جاهز للسبرنت القادم" />
         <AdminToolbar rows={dataset?.point_uploads || []} filename="point_uploads.csv" />
-        <EmptyState message="تم تجهيز نموذج البيانات والواجهة. تنفيذ استيراد Excel الفعلي مؤجل للسبرنت القادم." />
-      </section>
+        <EmptyState title="الواجهة جاهزة" body="تنفيذ استيراد Excel الفعلي مؤجل للسبرنت القادم." />
+      </ScreenSection>
 
-      <section className="section-card reveal">
-        <SectionHeading title="الاستبدالات" subtitle="point_redemptions" />
+      <ScreenSection className="reveal">
+        <SectionHeader eyebrow="الاستبدالات" title="point_redemptions" note="عرض السجلات" />
         <AdminToolbar rows={dataset?.point_redemptions || []} filename="point_redemptions.csv" />
-        <div className="compact-grid columns-3">
+        <div className="overview-grid">
           {(dataset?.point_redemptions || []).map((row) => (
-            <article key={row.id} className="compact-tile redemption">
-              <strong>{row.reward_description || row.reward_type || "استبدال"}</strong>
-              <p>{row.points_used} نقطة</p>
-              <span>{row.status || "-"}</span>
-            </article>
+            <SummaryCard key={row.id} title={row.reward_description || row.reward_type || "استبدال"} text={`${row.points_used} نقطة - ${row.status || "-"}`} />
           ))}
         </div>
-      </section>
+      </ScreenSection>
     </div>
   );
 }
 
-function Footer() {
+function ScreenSection({ children, className = "" }) {
+  return <section className={`surface-panel ${className}`.trim()}>{children}</section>;
+}
+
+function SectionHeader({ eyebrow, title, note }) {
   return (
-    <footer className="rewards-footer reveal">
+    <div className="section-head">
+      <PillBadge tone="soft">{eyebrow}</PillBadge>
       <div>
-        <strong>برنامج كريم فارما للمكافآت</strong>
-        <p>منصة رسمية للصيدليات لمتابعة النقاط والعروض والمزايا الناتجة عن التعامل عبر منصة كريم فارما الرقمية.</p>
+        <h2>{title}</h2>
+        {note && <p>{note}</p>}
       </div>
-      <div className="footer-links">
-        <a href={getWhatsappUrl()} target="_blank" rel="noreferrer">
-          واتساب: 01145000445
-        </a>
-        <Link to="/contact">الفروع والتواصل</Link>
-        <Link to="/admin">الإدارة</Link>
-      </div>
-    </footer>
+    </div>
   );
 }
 
-function MobileNav({ points }) {
+function BalanceCard({ title, balance, level, progressText, compact = false }) {
   return (
-    <nav className="mobile-nav" aria-label="التنقل السفلي">
-      {MOBILE_NAV_ITEMS.map((item) => (
-        <NavLink key={item.to} to={item.to} end={item.to === "/"} className={item.featured ? "featured-tab" : ""}>
-          <b>{item.icon}</b>
-          <span>{item.label}</span>
-          {item.featured && points > 0 && <em className="points-badge">{points > 999 ? "999+" : points}</em>}
-        </NavLink>
-      ))}
-    </nav>
+    <article className={`balance-hero-card ${compact ? "compact" : ""}`}>
+      <div className="balance-copy">
+        <span>{title}</span>
+        <strong className="balance-total">
+          <AnimatedNumber value={balance} />
+        </strong>
+      </div>
+      <div className="balance-meta">
+        <MiniState label="المستوى الحالي" value={level} />
+        <MiniState label="التقدم" value={progressText} />
+      </div>
+    </article>
+  );
+}
+
+function SummaryCard({ title, text }) {
+  return (
+    <article className="summary-module">
+      <strong>{title}</strong>
+      <p>{text}</p>
+    </article>
+  );
+}
+
+function StepCard({ step, title, text }) {
+  return (
+    <article className="step-module">
+      <b>{step}</b>
+      <strong>{title}</strong>
+      <p>{text}</p>
+    </article>
+  );
+}
+
+function StatCard({ label, value }) {
+  return (
+    <article className="stat-module">
+      <span>{label}</span>
+      <strong>{typeof value === "number" ? <AnimatedNumber value={value} /> : value}</strong>
+    </article>
+  );
+}
+
+function MiniState({ label, value }) {
+  return (
+    <div className="mini-state">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function EmptyState({ title, body }) {
+  return (
+    <div className="empty-module">
+      <strong>{title}</strong>
+      <p>{body}</p>
+    </div>
+  );
+}
+
+function InlineNotice({ children, tone }) {
+  return <div className={`inline-notice ${tone || ""}`.trim()}>{children}</div>;
+}
+
+function CompactLinkCard({ to, title, text }) {
+  return (
+    <Link to={to} className="summary-module link-card">
+      <strong>{title}</strong>
+      <p>{text}</p>
+    </Link>
   );
 }
 
@@ -1208,54 +1196,155 @@ function AdminToolbar({ rows, filename }) {
   return (
     <div className="admin-toolbar">
       <span>{rows.length} سجل</span>
-      <button type="button" className="btn btn-secondary" onClick={() => exportRowsToCsv(rows, filename)}>
+      <SecondaryButton type="button" onClick={() => exportRowsToCsv(rows, filename)}>
         تصدير CSV
-      </button>
+      </SecondaryButton>
     </div>
   );
 }
 
-function SectionHeading({ title, subtitle }) {
+function AdminList({ children }) {
+  return <div className="admin-list">{children}</div>;
+}
+
+function AdminRow({ title, meta = [], children }) {
   return (
-    <div className="section-heading">
-      <span>{subtitle}</span>
-      <h2>{title}</h2>
+    <div className="admin-row-card">
+      <div className="admin-row-copy">
+        <strong>{title}</strong>
+        {meta.map((item) => (
+          <span key={item}>{item}</span>
+        ))}
+      </div>
+      <div className="admin-row-control">{children}</div>
     </div>
   );
 }
 
-function TrustTile({ title }) {
+function Tabs({ items, current, onChange }) {
   return (
-    <article className="compact-tile trust">
-      <strong>{title}</strong>
-    </article>
-  );
-}
-
-function EmptyState({ message }) {
-  return (
-    <div className="empty-state">
-      <p>{message}</p>
+    <div className="tabs-shell" role="tablist" aria-label="التنقل الداخلي">
+      {items.map((item) => (
+        <button key={item.id} type="button" className={current === item.id ? "active" : ""} onClick={() => onChange(item.id)}>
+          {item.label}
+        </button>
+      ))}
     </div>
   );
 }
 
-function NotFoundPage() {
+function MobileBottomNav({ selectedPharmacy, points }) {
   return (
-    <div className="page-stack narrow">
-      <section className="section-card reveal">
-        <EmptyState message="الصفحة غير متاحة. يمكنك العودة إلى الصفحة الرئيسية أو متابعة نقاطك." />
-        <Link className="btn btn-primary" to="/">
-          العودة للرئيسية
-        </Link>
-      </section>
-    </div>
+    <nav className="bottom-nav-shell" aria-label="التنقل السفلي">
+      {NAV_ITEMS.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          end={item.to === "/"}
+          className={({ isActive }) =>
+            `bottom-nav-item ${item.featured ? "center-tab" : ""} ${isActive ? "active" : ""}`.trim()
+          }
+        >
+          <span className="bottom-nav-icon">
+            <NavIcon name={item.icon} />
+          </span>
+          <span className="bottom-nav-label">{item.label}</span>
+          {item.featured && (points > 0 || selectedPharmacy) && (
+            <em className="bottom-nav-badge">{points > 0 ? (points > 999 ? "999+" : points) : "رصيدك"}</em>
+          )}
+        </NavLink>
+      ))}
+    </nav>
   );
+}
+
+function PrimaryButton({ as, children, className = "", ...props }) {
+  const Component = as || "button";
+  return (
+    <Component className={`btn-core btn-primary-core ${className}`.trim()} {...props}>
+      {children}
+    </Component>
+  );
+}
+
+function SecondaryButton({ as, children, className = "", ...props }) {
+  const Component = as || "button";
+  return (
+    <Component className={`btn-core btn-secondary-core ${className}`.trim()} {...props}>
+      {children}
+    </Component>
+  );
+}
+
+function GhostButton({ as, children, className = "", ...props }) {
+  const Component = as || "button";
+  return (
+    <Component className={`btn-core btn-ghost-core ${className}`.trim()} {...props}>
+      {children}
+    </Component>
+  );
+}
+
+function FieldInput(props) {
+  return <input className="field-core" {...props} />;
+}
+
+function FieldSelect(props) {
+  return <select className="field-core" {...props} />;
+}
+
+function PillBadge({ children, tone }) {
+  return <span className={`pill-core ${tone === "soft" ? "soft" : ""}`.trim()}>{children}</span>;
+}
+
+function NavIcon({ name }) {
+  const icons = {
+    home: (
+      <path d="M4 11.8 12 5l8 6.8v8.2h-5.2v-5.3H9.2V20H4z" />
+    ),
+    offers: (
+      <path d="M6 7h12a2 2 0 0 1 2 2v2.2a2.5 2.5 0 0 0 0 4.6V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2.2a2.5 2.5 0 0 0 0-4.6V9a2 2 0 0 1 2-2Zm3.2 3.4a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8Zm5.6 3.4a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8ZM8.6 17l6.8-6.1" />
+    ),
+    points: (
+      <path d="M12 3.8a5.2 5.2 0 0 1 5.2 5.2c0 1.2-.4 2.3-1.1 3.1l-.3.4V16a1 1 0 0 1-.4.8l-3 2.3a1 1 0 0 1-1.2 0l-3-2.3A1 1 0 0 1 7.8 16v-3.5l-.3-.4A5.2 5.2 0 0 1 12 3.8Zm0 3a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4Z" />
+    ),
+    register: (
+      <path d="M12 4.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm-6 13.4c0-3 2.9-4.9 6-4.9s6 1.9 6 4.9V19H6zm11.2-8.2h2V7.5h2.2v2.2h2.1V12h-2.1v2.2H19.2V12h-2z" />
+    ),
+    more: (
+      <path d="M6.5 12a1.7 1.7 0 1 1 0 .1Zm5.5 0a1.7 1.7 0 1 1 0 .1Zm5.5 0a1.7 1.7 0 1 1 0 .1Z" />
+    )
+  };
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      {icons[name]}
+    </svg>
+  );
+}
+
+function pharmacyGreeting(pharmacy) {
+  if (!pharmacy) return "";
+  if (pharmacy.contactName) return `أهلاً د/ ${pharmacy.contactName} - ${pharmacy.pharmacyName}`;
+  return `أهلاً ${pharmacy.pharmacyName}`;
 }
 
 function formatDate(value) {
   if (!value) return "-";
   return new Intl.DateTimeFormat("ar-EG", { year: "numeric", month: "short", day: "numeric" }).format(new Date(value));
+}
+
+function NotFoundPage() {
+  return (
+    <div className="screen-stack">
+      <ScreenSection className="narrow-screen reveal">
+        <EmptyState title="الصفحة غير متاحة" body="يمكنك العودة إلى الصفحة الرئيسية أو متابعة نقاطك من الأسفل." />
+        <PrimaryButton as={Link} to="/">
+          العودة للرئيسية
+        </PrimaryButton>
+      </ScreenSection>
+    </div>
+  );
 }
 
 export default RewardsPlatformApp;
