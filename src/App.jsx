@@ -4,6 +4,7 @@ import matchesData from "./data/fixtures.json";
 import offers from "./data/offers.json";
 import branches from "./data/branches.json";
 import { campaign } from "./config/campaign";
+import LoyaltyPreviewApp from "./loyaltyPreview/LoyaltyPreviewApp";
 import PreviewV2 from "./ui-rebuild-v2/PreviewV2";
 import "leaflet/dist/leaflet.css";
 import {
@@ -79,6 +80,7 @@ const trackClicks = (...events) => () => events.forEach(([eventType, source, dat
 function App() {
   return <Routes>
     <Route path="/preview-v2" element={<PreviewV2 />} />
+    <Route path="/preview-loyalty/*" element={<LoyaltyPreviewApp />} />
     <Route path="*" element={<ProductionApp />} />
   </Routes>;
 }
